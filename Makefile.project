@@ -67,6 +67,8 @@ EE_OPTFLAGS ?= -O2
 EE_WARNFLAGS ?= -Wall
 EE_GFLAG ?= -G0
 
+EE_SHARED_FLAGS ?= -nodefaultlibs -nostdlib -nostartfiles
+
 DVP_FLAGS:=-D $(DVP_FLAGS)
 
 EE_LINKFILE ?= -T$(PS2SDK)/ee/startup/linkfile
@@ -77,9 +79,9 @@ EE_ASFLAGS := $(EE_GFLAG) -MMD -MP $(EE_ASFLAGS)
 EE_LDFLAGS := $(EE_GFLAG) -L$(PS2SDK)/ee/lib -zmax-page-size=128 $(EE_LDFLAGS)
 
 ifneq ($(EE_SHARED),)
-EE_CFLAGS += -fPIC -nodefaultlibs -nostdlib -nostartfiles
-EE_CXXFLAGS += -fPIC -nodefaultlibs -nostdlib -nostartfiles
-EE_LDFLAGS += -fPIC -nodefaultlibs -nostdlib -nostartfiles
+EE_CFLAGS += -fPIC $(EE_SHARED_FLAGS)
+EE_CXXFLAGS += -fPIC $(EE_SHARED_FLAGS)
+EE_LDFLAGS += -fPIC $(EE_SHARED_FLAGS)
 endif
 
 ifneq ($(EE_APP),)
