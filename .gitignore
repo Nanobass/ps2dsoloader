@@ -1,0 +1,14 @@
+.vscode
+template
+browser
+project
+
+*.a
+*.o
+*.d
+*.so
+*.erl
+*.elf
+*.irx
+*.o.vsm
+*.o.vcl

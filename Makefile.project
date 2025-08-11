@@ -1,0 +1,247 @@
+#
+# GENERAL MAKEFILE FOR PS2 PROJECTS
+# ADD include ../Makefile.project
+# AND DEFINE EITHER: EE_BIN, EE_LIB, EE_SHARED FOR EE
+# AND DEFINE EITHER: IOP_LIB, IOP_SHARED FOR IOP
+#
+
+COMMON_DIR=common
+
+#
+# EE
+#
+
+
+EE_TOOL_PREFIX ?= mips64r5900el-ps2-elf-
+EE_CC ?= $(EE_TOOL_PREFIX)gcc
+EE_CXX ?= $(EE_TOOL_PREFIX)g++
+EE_AS ?= $(EE_TOOL_PREFIX)as
+EE_LD ?= $(EE_TOOL_PREFIX)ld
+EE_AR ?= $(EE_TOOL_PREFIX)ar
+EE_OBJCOPY ?= $(EE_TOOL_PREFIX)objcopy
+EE_STRIP ?= $(EE_TOOL_PREFIX)strip
+EE_ADDR2LINE ?= $(EE_TOOL_PREFIX)addr2line
+EE_RANLIB ?= $(EE_TOOL_PREFIX)ranlib
+
+ifneq ($(or $(EE_BIN),$(EE_SHARED),$(EE_LIB),$(EE_ERL)),)
+
+VCL			?= vcl.exe
+VCLPP		?= vclpp
+VUC  		?= vuc.exe
+DVP			?= dvp-as
+
+EE_DIR?=ee
+EE_SRC?=$(EE_DIR)/src
+EE_INC?=$(EE_DIR)/include
+
+VU_DIR?=vu
+VU_SRC?=$(VU_DIR)/src
+VU_INC?=$(VU_DIR)/include
+
+EE_OBJ?=$(EE_DIR)/obj
+EE_EMBED?=
+
+EE_INCS+=-I$(PS2SDK)/ee/include -I$(PS2SDK)/common/include -I$(PS2SDK)/ports/include -I$(GSKIT)/include -I$(EE_DIR) -I$(EE_INC) -I$(COMMON_DIR)
+EE_LIBS+=-L$(PS2SDK)/ports/lib -L$(GSKIT)/lib
+
+EE_CODE_OBJECTS=$(patsubst $(EE_SRC)/%.c,$(EE_OBJ)/%.o,$(shell find $(EE_SRC)/ -type f -name '*.c'))\
+                $(patsubst $(EE_SRC)/%.cc,$(EE_OBJ)/%.o,$(shell find $(EE_SRC)/ -type f -name '*.cc'))\
+                $(patsubst $(EE_SRC)/%.cpp,$(EE_OBJ)/%.o,$(shell find $(EE_SRC)/ -type f -name '*.cpp'))\
+                $(patsubst $(EE_SRC)/%.S,$(EE_OBJ)/%.o,$(shell find $(EE_SRC)/ -type f -name '*.S'))\
+                $(patsubst $(EE_SRC)/%.s,$(EE_OBJ)/%.o,$(shell find $(EE_SRC)/ -type f -name '*.s'))\
+                $(patsubst %,$(EE_OBJ)/embed/%.o,$(EE_EMBED))
+
+ifneq ($(wildcard $(VU_DIR)),)
+EE_VU_OBJECTS=  $(patsubst $(VU_SRC)/%.vcl,$(EE_OBJ)/%.o,$(shell find $(VU_SRC)/ -type f -name '*.vcl'))\
+		        $(patsubst $(VU_SRC)/%.vclpp,$(EE_OBJ)/%.o,$(shell find $(VU_SRC)/ -type f -name '*.vclpp'))\
+#		        $(patsubst $(VU_SRC)/%.vuc,$(EE_OBJ)/%.o,$(shell find $(VU_SRC)/ -type f -name '*.vuc'))\
+		        $(patsubst $(VU_SRC)/%.vsm,$(EE_OBJ)/%.o,$(shell find $(VU_SRC)/ -type f -name '*.vsm'))
+endif
+
+EE_OBJS=$(EE_CODE_OBJECTS) $(EE_VU_OBJECTS) $(EE_EXTRA_OBJECTS)
+
+EE_DEPENDS=$(patsubst $(EE_OBJ)/%.o,$(EE_OBJ)/%.d,$(EE_OBJS))
+-include $(EE_DEPENDS)
+
+EE_OPTFLAGS ?= -O2
+EE_WARNFLAGS ?= -Wall
+EE_GFLAG ?= -G0
+
+DVP_FLAGS:=-D $(DVP_FLAGS)
+
+EE_LINKFILE ?= -T$(PS2SDK)/ee/startup/linkfile
+
+EE_CFLAGS := $(EE_GFLAG) -MMD -MP -D_EE  $(EE_OPTFLAGS) $(EE_WARNFLAGS) $(EE_CFLAGS)
+EE_CXXFLAGS := $(EE_GFLAG) -MMD -MP -D_EE  $(EE_OPTFLAGS) $(EE_WARNFLAGS) $(EE_CXXFLAGS)
+EE_ASFLAGS := $(EE_GFLAG) -MMD -MP $(EE_ASFLAGS)
+EE_LDFLAGS := $(EE_GFLAG) -L$(PS2SDK)/ee/lib -zmax-page-size=128 $(EE_LDFLAGS)
+
+ifneq ($(EE_SHARED),)
+EE_CFLAGS += -fPIC -nodefaultlibs -nostdlib -nostartfiles
+EE_CXXFLAGS += -fPIC -nodefaultlibs -nostdlib -nostartfiles
+EE_LDFLAGS += -fPIC -nodefaultlibs -nostdlib -nostartfiles
+endif
+
+ifneq ($(EE_APP),)
+EE_CFLAGS += -nodefaultlibs -nostdlib -nostartfiles
+EE_CXXFLAGS += -nodefaultlibs -nostdlib -nostartfiles
+EE_LDFLAGS += -nodefaultlibs -nostdlib -nostartfiles
+endif
+
+.PRECIOUS: $(EE_EMBED)
+$(EE_OBJ)/embed/%.o: % | $(EE_EMBED) Makefile
+	@mkdir -p $(dir $@)	
+	bin2c $< $@.c $(basename $(notdir $<))_$(subst .,,$(suffix $<))
+	$(EE_CC) $(EE_CFLAGS) -c $@.c -o $@
+
+$(EE_OBJ)/%.o: $(EE_SRC)/%.c Makefile
+	@mkdir -p $(dir $@)
+	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
+
+$(EE_OBJ)/%.o: $(EE_SRC)/%.cc Makefile
+	@mkdir -p $(dir $@)
+	$(EE_CXX) $(EE_CXXFLAGS) $(EE_INCS) -c $< -o $@
+
+$(EE_OBJ)/%.o: $(EE_SRC)/%.cpp Makefile
+	@mkdir -p $(dir $@)
+	$(EE_CXX) $(EE_CXXFLAGS) $(EE_INCS) -c $< -o $@
+
+$(EE_OBJ)/%.o: $(EE_SRC)/%.S Makefile
+	@mkdir -p $(dir $@)
+	$(EE_CC) $(EE_CFLAGS) $(EE_INCS) -c $< -o $@
+
+$(EE_OBJ)/%.o: $(EE_SRC)/%.s Makefile
+	@mkdir -p $(dir $@)
+	$(EE_AS) $(EE_ASFLAGS) $< -o $@
+
+define VCL_MACRO
+	$(VCL) -c -o$1 $2 >/dev/null
+endef
+
+$(EE_OBJ)/%.o: $(VU_SRC)/%.vsm Makefile
+	@mkdir -p $(dir $@)
+	$(DVP) $(DVP_FLAGS) -o $@ $<
+
+$(EE_OBJ)/%.o: $(VU_SRC)/%.vcl Makefile
+	@mkdir -p $(dir $@)
+	@rm -f $@.vsm
+	$(call VCL_MACRO,$@.vsm,$@)
+	$(DVP) $(DVP_FLAGS) -o $@ $@.vsm
+
+$(EE_OBJ)/%.o: $(VU_SRC)/%.vclpp Makefile
+	@mkdir -p $(dir $@)	
+	@rm -f $@.vcl
+	@rm -f $@.vsm
+	$(VCLPP) $< $@.vcl
+	$(call VCL_MACRO,$@.vsm,$@.vcl)
+	$(DVP) $(DVP_FLAGS) -o $@ $@.vsm
+
+$(EE_OBJ)/%.o: $(VU_SRC)/%.vuc Makefile
+	@mkdir -p $(dir $@)	
+	@rm -f $@.vcl
+	@rm -f $@.vsm
+	$(VUC) -c $< $(patsubst %.vuc,%.vcl,$<)
+	(cd $(VU_INC) && ee-gasp $(abspath $(patsubst %.vuc,%.vcl,$<)) > $(abspath $@.vcl))
+	@rm -f $(patsubst %.vuc,%.vcl,$<)
+	$(call VCL_MACRO,$@.vsm,$@.vcl)
+	$(DVP) $(DVP_FLAGS) -o $@ $@.vsm
+
+
+$(EE_BIN): $(EE_OBJS)
+	$(EE_CXX) $(EE_LINKFILE) $(EE_OPTFLAGS) -o $(EE_BIN) $(EE_OBJS) $(EE_LDFLAGS) $(EE_LIBS)
+
+$(EE_APP): $(EE_OBJS)
+	$(EE_CXX) $(EE_OPTFLAGS) -o $(EE_APP) $(EE_OBJS) $(EE_LDFLAGS) $(EE_LIBS)
+
+$(EE_ERL): $(EE_OBJS)
+	$(EE_CC) $(EE_OPTFLAGS) -o $(EE_ERL) $(EE_OBJS) $(EE_LDFLAGS) -Wl,-r -Wl,-d
+
+$(EE_SHARED): $(EE_OBJS)
+	$(EE_CXX) $(EE_OPTFLAGS) -o $(EE_SHARED) $(EE_OBJS) -shared $(EE_LDFLAGS) $(EE_LIBS)
+
+$(EE_LIB): $(EE_OBJS)
+	$(EE_AR) cru $(EE_LIB) $(EE_OBJS)
+
+endif
+
+#
+# IOP
+#
+
+IOP_TOOL_PREFIX ?= mipsel-ps2-irx-
+IOP_CC ?= $(IOP_TOOL_PREFIX)gcc
+IOP_AS ?= $(IOP_TOOL_PREFIX)as
+IOP_LD ?= $(IOP_TOOL_PREFIX)ld
+IOP_AR ?= $(IOP_TOOL_PREFIX)ar
+IOP_OBJCOPY ?= $(IOP_TOOL_PREFIX)objcopy
+IOP_STRIP ?= $(IOP_TOOL_PREFIX)strip
+IOP_ADDR2LINE ?= $(IOP_TOOL_PREFIX)addr2line
+IOP_RANLIB ?= $(IOP_TOOL_PREFIX)ranlib
+
+ifneq ($(or $(IOP_SHARED),$(IOP_LIB)),)
+
+IOP_DIR?=iop
+IOP_SRC?=$(IOP_DIR)/src
+IOP_INC?=$(IOP_DIR)/include
+IOP_OBJ?=$(IOP_DIR)/obj
+
+IOP_INCS+=-I$(PS2SDK)/iop/include -I$(PS2SDK)/common/include -I$(IOP_DIR) -I$(IOP_INC) -I$(COMMON_DIR)
+IOP_OBJS=$(patsubst $(IOP_SRC)/%.c,$(IOP_OBJ)/%.o,$(shell find $(IOP_SRC)/ -type f -name '*.c')) \
+		$(patsubst $(IOP_SRC)/%.S,$(IOP_OBJ)/%.o,$(shell find $(IOP_SRC)/ -type f -name '*.S')) \
+		$(patsubst $(IOP_SRC)/%.s,$(IOP_OBJ)/%.o,$(shell find $(IOP_SRC)/ -type f -name '*.s')) \
+		$(IOP_OBJ)/imports.o
+IOP_DEPENDS=$(patsubst $(IOP_OBJ)/%.o,$(IOP_OBJ)/%.d,$(IOP_OBJS))
+-include $(IOP_DEPENDS)
+
+IOP_OPTFLAGS ?= -O0
+IOP_WARNFLAGS ?= -Wall
+
+IOP_CFLAGS := -D_IOP -fno-builtin -msoft-float -mno-explicit-relocs -G0 -MMD -MP $(IOP_OPTFLAGS) $(IOP_WARNFLAGS) $(IOP_CFLAGS)
+IOP_ASFLAGS := -EL -G0 -MMD -MP $(IOP_ASFLAGS)
+IOP_LDFLAGS := -nostdlib -s $(IOP_LDFLAGS)
+IOP_IETABLE_CFLAGS := -fno-toplevel-reorder
+
+$(IOP_OBJ)/%.o: $(IOP_SRC)/%.c Makefile
+	@mkdir -p $(dir $@)
+	$(IOP_CC) $(IOP_CFLAGS) $(IOP_INCS) -c $< -o $@
+
+$(IOP_OBJ)/%.o: $(IOP_SRC)/%.S Makefile
+	@mkdir -p $(dir $@)
+	$(IOP_CC) $(IOP_CFLAGS) $(IOP_INCS) -c $< -o $@
+
+$(IOP_OBJ)/%.o: $(IOP_SRC)/%.s Makefile
+	@mkdir -p $(dir $@)
+	$(IOP_AS) $(IOP_ASFLAGS) $< -o $@
+
+# extra irx stuff
+
+.INTERMEDIATE: $(IOP_OBJ)/build-imports.c $(IOP_OBJ)/build-exports.c
+
+# Rules to build imports.lst.
+$(IOP_OBJ)/build-imports.c: $(IOP_SRC)/imports.lst
+	@mkdir -p $(dir $@)
+	@echo "#include \"irx_imports.h\"" > $@
+	cat $< >> $@
+
+$(IOP_OBJ)/imports.o: $(IOP_OBJ)/build-imports.c
+	@mkdir -p $(dir $@)
+	$(IOP_CC) $(IOP_CFLAGS) $(IOP_INCS) $(IOP_IETABLE_CFLAGS) -c $< -o $@
+
+# Rules to build exports.tab.
+$(IOP_OBJ)/build-exports.c: $(IOP_SRC)/exports.tab
+	@echo "#include \"irx.h\"" > $@
+	cat $< >> $@
+
+$(IOP_OBJ)/exports.o: $(IOP_OBJ)/build-exports.c
+	@mkdir -p $(dir $@)
+	$(IOP_CC) $(IOP_CFLAGS) $(IOP_INCS) $(IOP_IETABLE_CFLAGS) -c $< -o $@
+
+$(IOP_SHARED): $(IOP_OBJS)
+	@mkdir -p $(dir $@)
+	$(IOP_CC) $(IOP_OPTFLAGS) -o $(IOP_SHARED) $(IOP_OBJS) $(IOP_LDFLAGS) $(IOP_LIBS)
+
+$(IOP_LIB): $(IOP_OBJS)
+	@mkdir -p $(dir $@)
+	$(IOP_AR) cru $@ $(IOP_OBJS)
+
+endif
