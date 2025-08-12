@@ -36,7 +36,7 @@ int dl_add_global_symbol(const char* name, void* address, uint32_t info)
         global_symbols_tail = symbol;
     }
 
-    printf("global symbol added: %p info: %ld symbol: %s\n", address, info, name);
+    printf("global symbol added: info: %ld symbol: %s\n", info, name);
 
     return 0;
 }
@@ -103,11 +103,6 @@ void dl_remove_global_symbols(struct module_t* module)
 
 struct symbol_t* dl_find_global_symbol(const char* name)
 {
-    if (!name) {
-        dl_raise("invalid name");
-        return NULL;
-    }
-
     struct symbol_t* symbol = NULL;
     for(struct symbol_t* current = global_symbols; current; current = current->next) {
         if (strcmp(current->name, name) == 0) {

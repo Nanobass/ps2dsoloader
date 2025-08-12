@@ -10,23 +10,6 @@
 
 #include <elf.h>
 
-struct dso_context_t {
-    size_t dynamic_count;
-    Elf32_Dyn* dynamic;
-    size_t dynsym_count;
-    Elf32_Sym* dynsym;
-    char* dynstr;
-
-    uint32_t rld_version;
-    uint32_t flags;
-    uintptr_t base_address;
-    uint32_t local_gotno;
-    uint32_t symtabno;
-    uint32_t gotsym;
-    uintptr_t rld_map;
-    uintptr_t pltgot;
-};
-
 struct symbol_t {
     union {
         struct module_t* module; // for local symbol
@@ -45,7 +28,7 @@ struct module_t {
     char* name;
     char** dependencies;
 
-    struct dso_context_t dso_context;
+    void* extra;
 
     size_t size;
     uint8_t base[];

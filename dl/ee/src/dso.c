@@ -38,7 +38,7 @@ void dso_error(struct elf_load_context_t* ctx, const char* msg)
     longjmp(ctx->error, (int) msg);
 }
 
-int dso_read_elf_header(struct elf_load_context_t* ctx, uint16_t type)
+void dso_read_elf_header(struct elf_load_context_t* ctx, uint16_t type)
 {
     if (fread(&ctx->ehdr, sizeof(Elf32_Ehdr), 1, ctx->file) != 1) {
         dso_error(ctx, "failed to read elf header");
@@ -102,11 +102,9 @@ int dso_read_elf_header(struct elf_load_context_t* ctx, uint16_t type)
     if(ctx->ehdr.e_shentsize != sizeof(Elf32_Shdr)) {
         dso_error(ctx, "invalid section header size");
     }
-
-    return 0;
 }
 
-int dso_read_program_headers(struct elf_load_context_t* ctx)
+void dso_read_program_headers(struct elf_load_context_t* ctx)
 {
     ctx->phdr = (Elf32_Phdr*) malloc(ctx->ehdr.e_phnum * sizeof(Elf32_Phdr));
     if (!ctx->phdr) {
@@ -117,10 +115,9 @@ int dso_read_program_headers(struct elf_load_context_t* ctx)
     if (fread(ctx->phdr, sizeof(Elf32_Phdr), ctx->ehdr.e_phnum, ctx->file) != ctx->ehdr.e_phnum) {
         dso_error(ctx, "failed to read program headers");
     }
-    return 0;
 }
 
-int dso_read_section_headers(struct elf_load_context_t* ctx)
+void dso_read_section_headers(struct elf_load_context_t* ctx)
 {
     ctx->shdr = (Elf32_Shdr*) malloc(ctx->ehdr.e_shnum * sizeof(Elf32_Shdr));
     if (!ctx->shdr) {
@@ -134,11 +131,9 @@ int dso_read_section_headers(struct elf_load_context_t* ctx)
 
     dso_allocate_extra_section(ctx, ctx->ehdr.e_shstrndx);
     ctx->shstrtab = (char*) ctx->shdr[ctx->ehdr.e_shstrndx].sh_addr;
-
-    return 0;
 }
 
-int dso_print_program_headers(struct elf_load_context_t* ctx)
+void dso_print_program_headers(struct elf_load_context_t* ctx)
 {
     printf("program headers\n");
     printf("##: type       flags      offset     vaddr      paddr      filesz     memsz      align\n");
@@ -156,10 +151,9 @@ int dso_print_program_headers(struct elf_load_context_t* ctx)
                 phdr->p_align
         );
     }
-    return 0;
 }
 
-int dso_print_section_headers(struct elf_load_context_t* ctx)
+void dso_print_section_headers(struct elf_load_context_t* ctx)
 {
     printf("sections\n");
     printf("###: type           flags      offset     addr       size       addralign name\n");
@@ -183,22 +177,21 @@ int dso_print_section_headers(struct elf_load_context_t* ctx)
                section_name
         );
     }
-    return 0;
 }
 
-int dso_print_dynamic_tags(struct elf_load_context_t* ctx)
+void dso_print_dynamic_tags(struct elf_load_context_t* ctx)
 {
     printf("dynamic tags\n");
     printf("###: tag                          value\n");
 
     Elf32_Section dynamic_index = 0;
     if(dso_find_section_by_type(ctx, &dynamic_index, SHT_DYNAMIC) < 0) {
-        return -1;
+        dso_error(ctx, "failed to find dynamic section");
     }
 
     Elf32_Shdr* section = &ctx->shdr[dynamic_index];
-    if(!(section->sh_flags & SHF_ALLOC) && !(section->sh_flags & SHF_EXTRA_ALLOCATION)) return -2;
-    if(section->sh_type != SHT_DYNAMIC) return -3;
+    if(!(section->sh_flags & SHF_ALLOC) && !(section->sh_flags & SHF_EXTRA_ALLOCATION)) dso_error(ctx, "dynamic section is not allocated");
+    if(section->sh_type != SHT_DYNAMIC) dso_error(ctx, "dynamic section is not of type SHT_DYNAMIC");
 
     Elf32_Dyn* dyn = (Elf32_Dyn*)section->sh_addr;
     int j = 0;
@@ -212,10 +205,9 @@ int dso_print_dynamic_tags(struct elf_load_context_t* ctx)
         }
         j++;
     }
-    return 0;
 }
 
-int dso_allocate_module(struct elf_load_context_t* ctx)
+void dso_allocate_module(struct elf_load_context_t* ctx, size_t extra)
 {
     size_t module_size = 0;
     for(int i = 0; i < ctx->ehdr.e_phnum; i++) {
@@ -231,16 +223,22 @@ int dso_allocate_module(struct elf_load_context_t* ctx)
         }
     }
 
+    module_size += extra;
+
     printf("module size: 0x%08X\n", module_size);
     ctx->module = dl_allocate_module(module_size);
+    if(extra) {
+        ctx->module->extra = ctx->module->base + module_size - extra;
+    } else {
+        ctx->module->extra = NULL;
+    }
     if (!ctx->module) {
         dso_error(ctx, "failed to allocate module");
     }
-    printf("module base allocated at %p\n", ctx->module->base);
-    return 0;
+    printf("module base allocated at %p extra at %p\n", ctx->module->base, ctx->module->extra);
 }
 
-int dso_read_module_sections(struct elf_load_context_t* ctx)
+void dso_read_module_sections(struct elf_load_context_t* ctx)
 {
     for (int i = 0; i < ctx->ehdr.e_shnum; i++) {
         Elf32_Shdr* section = &ctx->shdr[i];
@@ -262,10 +260,9 @@ int dso_read_module_sections(struct elf_load_context_t* ctx)
             }
         }
     }
-    return 0;
 }
 
-int dso_allocate_extra_section(struct elf_load_context_t* ctx, Elf32_Section index)
+void dso_allocate_extra_section(struct elf_load_context_t* ctx, Elf32_Section index)
 {
     Elf32_Shdr* section = &ctx->shdr[index];
     section->sh_flags |= SHF_EXTRA_ALLOCATION;
@@ -278,10 +275,9 @@ int dso_allocate_extra_section(struct elf_load_context_t* ctx, Elf32_Section ind
     if (fread((void*)section->sh_addr, 1, section->sh_size, ctx->file) != section->sh_size) {
         dso_error(ctx, "failed to read section name tables");
     }
-    return 0;
 }
 
-int dso_free_extra_section(struct elf_load_context_t* ctx, Elf32_Section index)
+void dso_free_extra_section(struct elf_load_context_t* ctx, Elf32_Section index)
 {
     Elf32_Shdr* section = &ctx->shdr[index];
     if (section->sh_flags & SHF_EXTRA_ALLOCATION) {
@@ -290,10 +286,9 @@ int dso_free_extra_section(struct elf_load_context_t* ctx, Elf32_Section index)
     } else {
         dso_error(ctx, "section is not an extra allocation");
     }
-    return 0;
 }
 
-int dso_free_extra_sections(struct elf_load_context_t* ctx)
+void dso_free_extra_sections(struct elf_load_context_t* ctx)
 {
     for(Elf32_Section i = 0; i < ctx->ehdr.e_shnum; i++) {
         Elf32_Shdr* section = &ctx->shdr[i];
@@ -302,7 +297,6 @@ int dso_free_extra_sections(struct elf_load_context_t* ctx)
             section->sh_addr = 0;
         }
     }
-    return 0;
 }
 
 int dso_find_section_by_name(struct elf_load_context_t* ctx, Elf32_Section* section, const char* name)

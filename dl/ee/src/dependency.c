@@ -13,6 +13,8 @@ int dl_add_dependency(struct module_t* depender, struct module_t* provider)
         return -1;
     }
 
+    printf("adding dependency: %s -> %s\n", depender ? depender->name : "GLOBAL", provider ? provider->name : "GLOBAL");
+
     dependency->depender = depender;
     dependency->provider = provider;
     dependency->next = NULL;
