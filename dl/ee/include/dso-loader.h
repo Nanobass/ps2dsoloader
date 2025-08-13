@@ -45,6 +45,13 @@ typedef int (*_start_t)(int, char**);
 typedef void (*_exit_t)();
 
 /**
+ * load the symbol table of the main executable
+ * @param file file pointer to the main elf
+ * @return 0 on success, -1 on failure
+ */
+int dl_load_elf_symbols(FILE* file);
+
+/**
  * load a shared object from a file
  * @param file the file pointer for the shared object
  * @return a pointer to the loaded module, or NULL on failure
@@ -54,8 +61,16 @@ struct module_t* dl_load_module(FILE* file);
 /**
  * force resolves all symbols in a module
  * @param module the module to resolve
+ * @note do not use with ERL modules
  */
 void dl_resolve_module(struct module_t* module);
+
+/**
+ * load an ERL object from a file
+ * @param file file pointer to the ERL file
+ * @return a pointer to the loaded ERL, or NULL on failure
+ */
+struct module_t* dl_load_erl(FILE* file);
 
 /**
  * raise an error
@@ -76,6 +91,8 @@ struct module_t* dl_allocate_module(size_t size);
  * @return 0 on success, -1 on failure
  */
 int dl_free_module(struct module_t* module);
+
+struct module_t* dl_module_root();
 
 /**
  * find a symbol by name in a module
@@ -124,6 +141,8 @@ void dl_remove_global_symbols(struct module_t* module);
  * @return the symbol if found, NULL otherwise
  */
 struct symbol_t* dl_find_global_symbol(const char* name);
+
+void dl_sort_global_symbols();
 
 /**
  * dump all global symbols

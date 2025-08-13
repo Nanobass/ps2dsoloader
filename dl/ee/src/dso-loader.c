@@ -160,7 +160,6 @@ struct module_t* dl_load_module(FILE* file) {
                 break;
             case DT_PLTGOT:
                 dso_ctx->got_base = (uintptr_t*) (ctx->module->base + dyn->d_un.d_val);
-                printf("PLTGOT found at 0x%08lX\n", (unsigned long) ctx->module->base);
                 break;
             case DT_MIPS_BASE_ADDRESS:
                 // TODO: implement base address relocation
@@ -178,9 +177,6 @@ struct module_t* dl_load_module(FILE* file) {
     dso_ctx->got_count = dso_ctx->local_got_count + dso_ctx->dynsym_count - dso_ctx->gotsym;
 
     // relocate global offset table
-
-    printf("dso context: %p\n", dso_ctx->got_base);
-
     printf("global offset table\n");
     printf("local entries\n");
     printf("#####: value\n");
@@ -191,7 +187,7 @@ struct module_t* dl_load_module(FILE* file) {
     printf("#####: value      symbol\n");
     for (size_t i = dso_ctx->local_got_count; i < dso_ctx->got_count; i++) {
 
-        Elf32_Sym* sym = &((Elf32_Sym*) ctx->shdr[dynsym_index].sh_addr)[i];
+        Elf32_Sym* sym = &((Elf32_Sym*) ctx->shdr[dynsym_index].sh_addr)[i - dso_ctx->local_got_count + dso_ctx->gotsym];
         const char* name;
         if(sym->st_name != STN_UNDEF) {
             name = &dso_ctx->dynstr[sym->st_name];
@@ -301,13 +297,9 @@ struct module_t* dl_load_module(FILE* file) {
 
     size_t symbol_count = 0;
     uint32_t symbol_index = 0;
-    for(size_t i = 0; i < dso_ctx->dynsym_count; i++) {
+    for(size_t i = 0; i < dso_ctx->gotsym; i++) {
         Elf32_Sym* sym = &dso_ctx->dynsym[i];
-        if(
-            sym->st_shndx != SHN_UNDEF && 
-            sym->st_name != STN_UNDEF && 
-            (ELF32_ST_TYPE(sym->st_info) == STT_OBJECT || ELF32_ST_TYPE(sym->st_info) == STT_FUNC)
-        ) symbol_count++;
+        if(sym->st_shndx != SHN_UNDEF) symbol_count++;
     }
 
     module->symbol_count = symbol_count;
@@ -334,11 +326,7 @@ struct module_t* dl_load_module(FILE* file) {
 
         sym->st_value = (uintptr_t) module->base + (uintptr_t) sym->st_value;
 
-        if(
-            sym->st_shndx != SHN_UNDEF && 
-            sym->st_name != STN_UNDEF && 
-            (ELF32_ST_TYPE(sym->st_info) == STT_OBJECT || ELF32_ST_TYPE(sym->st_info) == STT_FUNC)
-        ) {
+        if(sym->st_shndx != SHN_UNDEF) {
             struct symbol_t* symbol = &module->symbols[symbol_index++];
             symbol->name = name;
             symbol->address = (void*) sym->st_value;
@@ -349,6 +337,15 @@ struct module_t* dl_load_module(FILE* file) {
                 symbol_types[ELF32_ST_TYPE(sym->st_info) > STT_LOPROC ? STT_LOPROC : ELF32_ST_TYPE(sym->st_info)],
                 binding_types[ELF32_ST_BIND(sym->st_info) > STB_LOPROC ? STB_LOPROC : ELF32_ST_BIND(sym->st_info)],
                 sym->st_shndx, name);
+    }
+
+    // resolve non-function symbols
+    for(size_t i = 0; i < get_dso_context(module)->dynsym_count; i++) {
+        Elf32_Sym* sym = &get_dso_context(module)->dynsym[i];
+        if(sym->st_shndx != SHN_UNDEF) continue;
+        if(sym->st_name == STN_UNDEF) continue;
+        if(ELF32_ST_TYPE(sym->st_info) == STT_FUNC) continue;
+        dl_resolve(module, i);
     }
 
     // new code, new cache

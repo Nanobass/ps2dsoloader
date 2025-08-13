@@ -20,6 +20,14 @@
 // PS2SDK Includes
 //========================================
 
+/* libc */
+
+/* libkernel */
+#include <kernel.h>
+#include <iopcontrol.h>
+
+#include <math3d.h>
+
 //========================================
 // Project Includes
 //========================================
@@ -30,12 +38,15 @@
 
 #define EXPORT __attribute__((visibility("default")))
 
+extern char data[];
+
 extern int printf(const char* format, ...);
 
 #define mprintf(...) printf("filer: " __VA_ARGS__)
 
 EXPORT int filer_reset_iop() {
     mprintf("resetting IOP...\n");
+    while(!SifIopReset("", 0x80000000));
     return 0;
 }
 
@@ -50,11 +61,16 @@ EXPORT int filer_module_control(const char* module_name, int cmd, int len, void*
 }
 
 EXPORT int filer_shutdown() {
-    mprintf("shutting down filer...\n");
+    mprintf("shutting down filer... %s\n", data);
     return 0;
 }
 
 EXPORT int _start(int argc, char *argv[]) {
     mprintf("started\n");
+    VECTOR a = {0, 1, 0, 1};
+    VECTOR b = {1, 0, 0, 0};
+    VECTOR c;
+    vector_add(c, a, b);
+    mprintf("vector_add result: %f %f %f %f\n", c[0], c[1], c[2], c[3]);
     return 0;
 }

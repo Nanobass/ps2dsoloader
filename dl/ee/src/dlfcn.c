@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-const char* dl_last_error = NULL;
+static const char* dl_last_error = NULL;
 
 void dl_raise(const char* msg) {
     if (msg) {

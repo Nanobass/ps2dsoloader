@@ -7,7 +7,7 @@
 
 #include <kernel.h>
 
-struct module_t* modules = NULL, *modules_tail = NULL;
+static struct module_t* modules = NULL, *modules_tail = NULL;
 
 struct module_t* dl_allocate_module(size_t size) {
     struct module_t* module = (struct module_t*)malloc(sizeof(struct module_t) + size);
@@ -50,6 +50,10 @@ int dl_free_module(struct module_t* module) {
     }
     dl_raise("module not found");
     return -1;
+}
+
+struct module_t* dl_module_root() {
+    return modules;
 }
 
 struct symbol_t* dl_module_find_symbol(struct module_t* module, const char* name) {

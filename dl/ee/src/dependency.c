@@ -3,7 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct dependency_t* dependencies = NULL;
+static struct dependency_t* dependencies = NULL;
+
+static const char* modulename(struct module_t* module) {
+    if(!module) return "GLOBAL";
+    if(!module->name) return "<unnamed>";
+    return module->name;
+}
 
 int dl_add_dependency(struct module_t* depender, struct module_t* provider)
 {
@@ -13,7 +19,7 @@ int dl_add_dependency(struct module_t* depender, struct module_t* provider)
         return -1;
     }
 
-    printf("adding dependency: %s -> %s\n", depender ? depender->name : "GLOBAL", provider ? provider->name : "GLOBAL");
+    printf("adding dependency: %s -> %s\n", modulename(depender), modulename(provider));
 
     dependency->depender = depender;
     dependency->provider = provider;
@@ -40,7 +46,7 @@ int dl_remove_dependency(struct module_t* depender, struct module_t* provider)
     while (current) {
         if (current->depender == depender && current->provider == provider) {
 
-            printf("deleting dependency: %s -> %s\n", current->depender ? current->depender->name : "GLOBAL", current->provider ? current->provider->name : "GLOBAL");
+            printf("deleting dependency: %s -> %s\n", modulename(current->depender), modulename(current->provider));
 
             if (previous) {
                 previous->next = current->next;

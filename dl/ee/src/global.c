@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct symbol_t* global_symbols = NULL, *global_symbols_tail = NULL;
+static struct symbol_t* global_symbols = NULL, *global_symbols_tail = NULL;
 
 int dl_add_global_symbol(const char* name, void* address, uint32_t info)
 {
@@ -82,6 +82,7 @@ int dl_add_global_symbols(struct module_t* module)
     }
 
     for(uint32_t i = 0; i < module->symbol_count; i++) {
+        if(ELF32_ST_BIND(module->symbols[i].info) != STB_GLOBAL && ELF32_ST_BIND(module->symbols[i].info) != STB_WEAK) continue;
         if (dl_add_global_symbol(module->symbols[i].name, module->symbols[i].address, module->symbols[i].info) < 0) {
             return -1;
         }
@@ -97,6 +98,7 @@ void dl_remove_global_symbols(struct module_t* module)
     }
 
     for(uint32_t i = 0; i < module->symbol_count; i++) {
+        if(ELF32_ST_BIND(module->symbols[i].info) != STB_GLOBAL && ELF32_ST_BIND(module->symbols[i].info) != STB_WEAK) continue;
         dl_remove_global_symbol(module->symbols[i].name, module->symbols[i].info);
     }
 }
@@ -123,11 +125,47 @@ struct symbol_t* dl_find_global_symbol(const char* name)
     return symbol;
 }
 
+void dl_sort_global_symbols() {
+    struct symbol_t* sorted_head = NULL;
+    struct symbol_t* sorted_tail = NULL;
+    while (global_symbols) {
+        
+        struct symbol_t* min_prev = NULL;
+        struct symbol_t* min = global_symbols;
+        struct symbol_t* prev = global_symbols;
+        struct symbol_t* curr = global_symbols->next;
+        while (curr) {
+            if (strcmp(curr->name, min->name) < 0) {
+                min_prev = prev;
+                min = curr;
+            }
+            prev = curr;
+            curr = curr->next;
+        }
+        
+        if (min_prev) {
+            min_prev->next = min->next;
+        } else {
+            global_symbols = min->next;
+        }
+        
+        min->next = NULL;
+        if (!sorted_head) {
+            sorted_head = min;
+            sorted_tail = min;
+        } else {
+            sorted_tail->next = min;
+            sorted_tail = min;
+        }
+    }
+
+    global_symbols = sorted_head;
+    global_symbols_tail = sorted_tail;
+}
+
 void dl_dump_global_symbols() {
-    struct symbol_t* current = global_symbols;
     printf("global symbols:\n");
-    while (current) {
+    for(struct symbol_t* current = global_symbols; current; current = current->next) {
         printf("  %s: %p (info: %ld)\n", current->name, current->address, current->info);
-        current = current->next;
     }
 }
