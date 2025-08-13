@@ -31,6 +31,7 @@ void dso_read_section_headers(struct elf_load_context_t* ctx);
 void dso_print_program_headers(struct elf_load_context_t* ctx);
 void dso_print_section_headers(struct elf_load_context_t* ctx);
 void dso_print_dynamic_tags(struct elf_load_context_t* ctx);
+void dso_print_symbol_table(struct elf_load_context_t* ctx, Elf32_Sym* symtab, size_t sym_count, const char* strtab);
 
 void dso_allocate_module(struct elf_load_context_t* ctx, size_t extra);
 void dso_read_module_sections(struct elf_load_context_t* ctx);
@@ -43,3 +44,7 @@ int dso_find_section_by_name(struct elf_load_context_t* ctx, Elf32_Section* sect
 int dso_find_section_by_type(struct elf_load_context_t* ctx, Elf32_Section* section, uint32_t type);
 int dso_find_dynamic_tag(struct elf_load_context_t* ctx, Elf32_Dyn** tag, Elf32_Section dynamic, int type);
 int dso_count_dynamic_tags(struct elf_load_context_t* ctx, int type);
+
+void* dso_section_address(struct elf_load_context_t* ctx, Elf32_Section section);
+const char* dso_section_name(struct elf_load_context_t* ctx, Elf32_Section section);
+const char* dso_symbol_name(struct elf_load_context_t* ctx, const char* strtab, Elf32_Sym* symbol);

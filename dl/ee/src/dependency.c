@@ -1,9 +1,9 @@
-#include <dso-loader.h>
+#include <dl.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-static struct dependency_t* dependencies = NULL;
+static struct dependency_t* dependencies = NULL, *dependencies_tail = NULL;
 
 static const char* modulename(struct module_t* module) {
     if(!module) return "GLOBAL";
@@ -13,26 +13,35 @@ static const char* modulename(struct module_t* module) {
 
 int dl_add_dependency(struct module_t* depender, struct module_t* provider)
 {
+    printf("adding dependency: %s -> %s; ", modulename(depender), modulename(provider));
+    struct dependency_t* current = dependencies;
+    while (current) {
+        if (current->depender == depender && current->provider == provider) {
+            current->count++;
+            printf("count: %d\n", current->count);
+            return 0;
+        }
+        current = current->next;
+    }
+    printf("allocated\n");
+
     struct dependency_t* dependency = (struct dependency_t*)malloc(sizeof(struct dependency_t));
     if (!dependency) {
         dl_raise("out of memory for dependency");
         return -1;
     }
 
-    printf("adding dependency: %s -> %s\n", modulename(depender), modulename(provider));
-
     dependency->depender = depender;
     dependency->provider = provider;
+    dependency->count = 1;
     dependency->next = NULL;
 
     if (!dependencies) {
         dependencies = dependency;
+        dependencies_tail = dependency;
     } else {
-        struct dependency_t* current = dependencies;
-        while (current->next) {
-            current = current->next;
-        }
-        current->next = dependency;
+        dependencies_tail->next = dependency;
+        dependencies_tail = dependency;
     }
 
     return 0;
@@ -40,13 +49,20 @@ int dl_add_dependency(struct module_t* depender, struct module_t* provider)
 
 int dl_remove_dependency(struct module_t* depender, struct module_t* provider)
 {
+    printf("deleting dependency: %s -> %s; ", modulename(depender), modulename(provider));
+
     struct dependency_t* current = dependencies;
     struct dependency_t* previous = NULL;
 
     while (current) {
         if (current->depender == depender && current->provider == provider) {
 
-            printf("deleting dependency: %s -> %s\n", modulename(current->depender), modulename(current->provider));
+            if(current->count > 1) {
+                current->count--;
+                printf("count: %d\n", current->count);
+                return 0;
+            }
+            printf("deallocated\n");
 
             if (previous) {
                 previous->next = current->next;
@@ -64,6 +80,7 @@ int dl_remove_dependency(struct module_t* depender, struct module_t* provider)
             }
 
             free(current);
+            
             return 0;
         }
         previous = current;
@@ -71,5 +88,31 @@ int dl_remove_dependency(struct module_t* depender, struct module_t* provider)
     }
 
     dl_raise("dependency not found");
+    return -1;
+}
+
+int dl_remove_depender(struct module_t* depender)
+{
+    struct dependency_t* current = dependencies;
+    struct dependency_t* previous = NULL;
+
+    while (current) {
+        if (current->depender == depender) {
+            printf("deleting dependency: %s -> %s; count: %d\n", modulename(depender), modulename(current->provider), current->count);
+
+            if (previous) {
+                previous->next = current->next;
+            } else {
+                dependencies = current->next;
+            }
+
+            free(current);
+            return 0;
+        }
+        previous = current;
+        current = current->next;
+    }
+
+    dl_raise("depender not found");
     return -1;
 }

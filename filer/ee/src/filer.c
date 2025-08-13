@@ -21,12 +21,7 @@
 //========================================
 
 /* libc */
-
-/* libkernel */
 #include <kernel.h>
-#include <iopcontrol.h>
-
-#include <math3d.h>
 
 //========================================
 // Project Includes
@@ -40,13 +35,14 @@
 
 extern char data[];
 
+const char* id = "libfiler";
+
 extern int printf(const char* format, ...);
 
 #define mprintf(...) printf("filer: " __VA_ARGS__)
 
 EXPORT int filer_reset_iop() {
     mprintf("resetting IOP...\n");
-    while(!SifIopReset("", 0x80000000));
     return 0;
 }
 
@@ -60,17 +56,25 @@ EXPORT int filer_module_control(const char* module_name, int cmd, int len, void*
     return 0;
 }
 
-EXPORT int filer_shutdown() {
-    mprintf("shutting down filer... %s\n", data);
+EXPORT int filer_hello() {
+    mprintf("hello world\n");
+    return 0;
+}
+
+EXPORT __attribute__((constructor)) int filer_init() {
+    mprintf("initializing filer... %s\n", id);
+    return 0;
+}
+
+EXPORT __attribute__((destructor)) int filer_shutdown() {
+    mprintf("shutting down filer... %s\n", id);
     return 0;
 }
 
 EXPORT int _start(int argc, char *argv[]) {
     mprintf("started\n");
-    VECTOR a = {0, 1, 0, 1};
-    VECTOR b = {1, 0, 0, 0};
-    VECTOR c;
-    vector_add(c, a, b);
-    mprintf("vector_add result: %f %f %f %f\n", c[0], c[1], c[2], c[3]);
+    mprintf("id: %p\n", &id);
+    mprintf("id: %p\n", id);
+    mprintf("id: %s\n", id);
     return 0;
 }

@@ -1,7 +1,7 @@
 #include <export-elf.h>
 
+#include <dl.h>
 #include <dso.h>
-#include <dso-loader.h>
 
 int dl_load_elf_symbols(FILE* file) {
     struct elf_load_context_t* ctx = dso_create_load_context(file);

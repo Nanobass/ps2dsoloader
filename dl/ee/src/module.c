@@ -1,11 +1,7 @@
-#include <dso-loader.h>
-
-#include <debug-info.h>
+#include <dl.h>
 
 #include <stdlib.h>
 #include <string.h>
-
-#include <kernel.h>
 
 static struct module_t* modules = NULL, *modules_tail = NULL;
 
@@ -32,6 +28,10 @@ int dl_free_module(struct module_t* module) {
 
     while (current) {
         if (current == module) {
+            printf("deleting module %s\n", current->name);
+            dl_remove_depender(current);
+            dl_remove_global_symbols(current);
+            dl_module_fini(current);
             if (previous) {
                 previous->next = current->next;
             } else {
@@ -50,6 +50,34 @@ int dl_free_module(struct module_t* module) {
     }
     dl_raise("module not found");
     return -1;
+}
+
+int dl_module_init(struct module_t* module)
+{
+    if (!module) {
+        dl_raise("invalid module");
+        return -1;
+    }
+
+    if (module->init) {
+        module->init(module);
+    }
+
+    return 0;
+}
+
+int dl_module_fini(struct module_t* module)
+{
+    if (!module) {
+        dl_raise("invalid module");
+        return -1;
+    }
+
+    if (module->fini) {
+        module->fini(module);
+    }
+
+    return 0;
 }
 
 struct module_t* dl_module_root() {

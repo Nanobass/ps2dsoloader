@@ -1,7 +1,12 @@
+#include <dlfcn.h>
+
+#include <dl.h>
 #include <dso-loader.h>
+#include <erl-loader.h>
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 static const char* dl_last_error = NULL;
 
@@ -15,21 +20,34 @@ void dl_raise(const char* msg) {
 }
 
 void* dlopen(const char* filename, int flags) {
-    (void) flags;
-
+    
     FILE* elf_handle = fopen(filename, "rb");
     if (!elf_handle) {
         dl_raise("cannot open file");
         return NULL;
     }
-    struct module_t* module = dl_load_module(elf_handle);
+
+    struct module_t* module = NULL;
+    const char* ext = strrchr(filename, '.');
+
+    if(!strcmp(ext, ".so")) {
+        module = dl_load_dso(elf_handle);
+    } else if(!strcmp(ext, ".erl")) {
+        module = dl_load_erl(elf_handle);
+    } else {
+        dl_raise("unsupported file type");
+    }
+    
     fclose(elf_handle);
+
     if(!module) {
         return NULL;
     }
 
     if(flags & RTLD_NOW) {
-        dl_resolve_module(module);
+        if(!strcmp(ext, ".so")) {
+            dl_resolve_dso(module);
+        }
     }
 
     if(flags & RTLD_GLOBAL) {
@@ -37,6 +55,8 @@ void* dlopen(const char* filename, int flags) {
     }
 
     dl_add_dependency(NULL, module);
+
+    dl_module_init(module);
 
     return module;
 }

@@ -1,4 +1,6 @@
-#include <dso-loader.h>
+#include <dl.h>
+
+#include <debug-info.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -36,7 +38,7 @@ int dl_add_global_symbol(const char* name, void* address, uint32_t info)
         global_symbols_tail = symbol;
     }
 
-    printf("global symbol added: info: %ld symbol: %s\n", info, name);
+    printf("global symbol added: %-40s %-10s %-10s\n", name, symbol_types[ELF32_ST_TYPE(info)], binding_types[ELF32_ST_BIND(info)]);
 
     return 0;
 }
@@ -62,7 +64,7 @@ void dl_remove_global_symbol(const char* name, uint32_t info)
                 global_symbols_tail = previous;
             }
 
-            printf("global symbol removed: %s at %p (info: %ld)\n", current->name, current->address, current->info);
+            printf("global symbol removed: %-40s %-10s %-10s\n", name, symbol_types[ELF32_ST_TYPE(info)], binding_types[ELF32_ST_BIND(info)]);
 
             free(current->name);
             free(current);

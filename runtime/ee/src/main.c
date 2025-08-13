@@ -18,16 +18,26 @@
 #include <stddef.h>
 #include <string.h>
 #include <math.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <setjmp.h>
 
 /* ps2sdk */
 #include <kernel.h>
 
+#include <dl.h>
+
 #include <dso-loader.h>
+#include <erl-loader.h>
 #include <export-elf.h>
 
-char data[512];
+void check_error() {
+   const char* error = dlerror();
+    if(error) {
+        printf("dlerror: %s\n", error);
+        abort();
+    }
+}
 
 int main(int argc, char* argv[]) {
 
@@ -40,45 +50,21 @@ int main(int argc, char* argv[]) {
     dl_load_elf_symbols(file);
     fclose(file);
 
-    file = fopen("libmath3d.erl", "rb");
-    if (!file) {
-        perror("libmath3d");
-        abort();
-    }
-    struct module_t* libmath3d = dl_load_erl(file);
-    if(dlerror()) SleepThread();
-    dl_add_global_symbols(libmath3d);
-    dl_add_dependency(NULL, libmath3d);
-    fclose(file);
+    struct module_t* erl = dlopen("erl/libfileXio.erl", RTLD_NOW | RTLD_GLOBAL);
+    check_error();
 
     // load dynamic object
-    struct module_t* handle = dlopen("libfiler.so", RTLD_NOW | RTLD_GLOBAL);
-    const char* error = dlerror();
-    if(error) {
-        printf("dlopen failed: %s\n", error);
-        abort();
-    }
+    struct module_t* filer = dlopen("libfiler.so", RTLD_NOW | RTLD_GLOBAL);
+    check_error();
 
-    _start_t _start = (_start_t)dlsym(handle, "_start");
-    error = dlerror();
-    if(error) {
-        printf("dlsym failed: %s\n", error);
-        abort();
-    }
-
+    _start_t _start = (_start_t)dlsym(filer, "_start");
+    check_error();
     int ret = _start(argc, argv);
-
     printf("start returned: %d\n", ret);
 
-    dl_sort_global_symbols();
-    dl_dump_global_symbols();
+    dlclose(filer);
+    dlclose(erl);
 
-    char a[256];
-    snprintf(a, sizeof(a), "start returned: %d\n", ret);
-
-    float x = 2;
-    float b = cosf(x);
-    b = sinf(b);
-
+    SleepThread();
     return 0;
 }

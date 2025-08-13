@@ -1,6 +1,6 @@
-#include <dso-loader.h>
 #include <dso.h>
 
+#include <dl.h>
 #include <debug-info.h>
 
 #include <stdlib.h>
@@ -136,10 +136,10 @@ void dso_read_section_headers(struct elf_load_context_t* ctx)
 void dso_print_program_headers(struct elf_load_context_t* ctx)
 {
     printf("program headers\n");
-    printf("##: type       flags      offset     vaddr      paddr      filesz     memsz      align\n");
+    printf("##: type       flags    offset   vaddr    paddr    filesz   memsz    align\n");
     for(int i = 0; i < ctx->ehdr.e_phnum; i++) {
         Elf32_Phdr* phdr = &ctx->phdr[i];
-        printf("%2d: %-10s 0x%08lX 0x%08lX 0x%08lX 0x%08lX 0x%08lX 0x%08lX 0x%02lX\n",
+        printf("%2d: %-10s %08lX %08lX %08lX %08lX %08lX %08lX %02lX\n",
                 i, 
                 program_header_types[phdr->p_type < PT_NUM ? phdr->p_type : PT_NUM], 
                 phdr->p_flags, 
@@ -156,17 +156,12 @@ void dso_print_program_headers(struct elf_load_context_t* ctx)
 void dso_print_section_headers(struct elf_load_context_t* ctx)
 {
     printf("sections\n");
-    printf("###: type           flags      offset     addr       size       addralign name\n");
+    printf("###: type           flags    offset   addr     size     align name\n");
     for (int i = 0; i < ctx->ehdr.e_shnum; i++) {
         Elf32_Shdr* section = &ctx->shdr[i];
-        const char* section_name;
-        if(section->sh_name != SHN_UNDEF) {
-            section_name = &ctx->shstrtab[section->sh_name];
-        } else {
-            section_name = "<unnamed>";
-        }
+        const char* section_name = dso_section_name(ctx, i);
 
-        printf("%3d: %-14s 0x%08lX 0x%08lX 0x%08lX 0x%08lX 0x%02lX      %s\n",
+        printf("%3d: %-14s %08lX %08lX %08lX %08lX %02lX    %s\n",
                i,
                section_types[section->sh_type < SHT_NUM ? section->sh_type : SHT_NUM],
                section->sh_flags,
@@ -197,13 +192,27 @@ void dso_print_dynamic_tags(struct elf_load_context_t* ctx)
     int j = 0;
     for(; dyn->d_tag != DT_NULL; dyn++) {
         if(dyn->d_tag >= DT_MIPS_RLD_VERSION && dyn->d_tag <= DT_MIPS_RLD_MAP_REL) {
-            printf("%3zu: %-28s 0x%08lX\n", j, mips_dynamic_tag_types[dyn->d_tag - DT_MIPS_RLD_VERSION], dyn->d_un.d_val);
+            printf("%3zu: %-28s %08lX\n", j, mips_dynamic_tag_types[dyn->d_tag - DT_MIPS_RLD_VERSION], dyn->d_un.d_val);
         } else if(dyn->d_tag >= DT_NUM) {
-            printf("%3zu: 0x%08lX                   0x%08lX\n", j, dyn->d_tag, dyn->d_un.d_val);
+            printf("%3zu: %08lX                   %08lX\n", j, dyn->d_tag, dyn->d_un.d_val);
         } else {
-            printf("%3zu: %-28s 0x%08lX\n", j, dynamic_tag_types[dyn->d_tag], dyn->d_un.d_val);
+            printf("%3zu: %-28s %08lX\n", j, dynamic_tag_types[dyn->d_tag], dyn->d_un.d_val);
         }
         j++;
+    }
+}
+
+void dso_print_symbol_table(struct elf_load_context_t* ctx, Elf32_Sym* symtab, size_t sym_count, const char* strtab)
+{
+    printf("symbols\n");
+    printf("######: size     address  type           bind        index name\n");
+    for(size_t i = 1; i < sym_count; i++) {
+        Elf32_Sym* sym = &symtab[i];
+        char* name = (char*) dso_symbol_name(ctx, strtab, sym);
+        printf("%6zu: %08lX %08lX %-14s %-10s %6u %s\n", i, sym->st_size, sym->st_value,
+                symbol_types[ELF32_ST_TYPE(sym->st_info) > STT_LOPROC ? STT_LOPROC : ELF32_ST_TYPE(sym->st_info)],
+                binding_types[ELF32_ST_BIND(sym->st_info) > STB_LOPROC ? STB_LOPROC : ELF32_ST_BIND(sym->st_info)],
+                sym->st_shndx, name);
     }
 }
 
@@ -304,7 +313,7 @@ int dso_find_section_by_name(struct elf_load_context_t* ctx, Elf32_Section* sect
     for(Elf32_Section i = 0; i < ctx->ehdr.e_shnum; i++) {
         Elf32_Shdr* section0 = &ctx->shdr[i];
         if(section0->sh_name == SHN_UNDEF) continue;
-        const char* section_name = &ctx->shstrtab[section0->sh_name];
+        const char* section_name = dso_section_name(ctx, i);
         if(!strcmp(section_name, name)) {
             if(section) *section = i;
             return 0;
@@ -360,4 +369,40 @@ int dso_count_dynamic_tags(struct elf_load_context_t* ctx, int type)
         }
     }
     return count;
+}
+
+void* dso_section_address(struct elf_load_context_t* ctx, Elf32_Section section)
+{
+    if(section < ctx->ehdr.e_shnum) {
+        Elf32_Shdr* section_header = &ctx->shdr[section];
+        if(!(section_header->sh_flags & SHF_ALLOC) && !(section_header->sh_flags & SHF_EXTRA_ALLOCATION)) {
+            dso_error(ctx, "section not allocated");
+        }
+        return (void*) section_header->sh_addr;
+    } else {
+        return NULL;
+    }
+}
+
+const char* dso_section_name(struct elf_load_context_t* ctx, Elf32_Section section)
+{
+    if(section < ctx->ehdr.e_shnum) {
+        return &ctx->shstrtab[ctx->shdr[section].sh_name];
+    } else {
+        return "<noname>";
+    }
+}
+
+const char* dso_symbol_name(struct elf_load_context_t* ctx, const char* strtab, Elf32_Sym* symbol)
+{
+    if(symbol->st_name) {
+        if(!strtab) {
+            Elf32_Shdr* symbol_section = &ctx->shdr[symbol->st_shndx];
+            Elf32_Shdr* strtab_section = &ctx->shdr[symbol_section->sh_link];
+            strtab = dso_section_address(ctx, strtab_section->sh_addr);
+        }
+        return &strtab[symbol->st_name];
+    } else {
+        return dso_section_name(ctx, symbol->st_shndx);
+    }
 }
