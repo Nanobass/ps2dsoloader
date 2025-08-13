@@ -86,8 +86,6 @@ int dl_remove_dependency(struct module_t* depender, struct module_t* provider)
         previous = current;
         current = current->next;
     }
-
-    dl_raise("dependency not found");
     return -1;
 }
 
@@ -112,7 +110,5 @@ int dl_remove_depender(struct module_t* depender)
         previous = current;
         current = current->next;
     }
-
-    dl_raise("depender not found");
     return -1;
 }

@@ -22,6 +22,10 @@
 
 /* libc */
 #include <kernel.h>
+#include <loadfile.h>
+
+#define NEWLIB_PORT_AWARE
+#include <fileXio_rpc.h>
 
 //========================================
 // Project Includes
@@ -43,6 +47,10 @@ extern int printf(const char* format, ...);
 
 EXPORT int filer_reset_iop() {
     mprintf("resetting IOP...\n");
+    SifLoadModule("host0:/irx/iomanX.irx", 0, NULL);
+    SifLoadModule("host0:/irx/fileXio.irx", 0, NULL);
+    fileXioInit();
+    fileXioSetRWBufferSize(128 * 1024);
     return 0;
 }
 
@@ -68,6 +76,7 @@ EXPORT __attribute__((constructor)) int filer_init() {
 
 EXPORT __attribute__((destructor)) int filer_shutdown() {
     mprintf("shutting down filer... %s\n", id);
+    fileXioExit();
     return 0;
 }
 
