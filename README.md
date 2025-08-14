@@ -15,6 +15,7 @@ Can be used by any standard library using `#include <dlfcn.h>`
 ## DSO Quirks
 Because the EE Toolchain isn't configured for shared library linking, you have to add your dependencies manually using `patchelf`
 The make variable `EE_NEEDED` does this automatically when buillding `EE_SHARED`
+Another way to add dependencies is to use `-Wl,-soname` and specifying this pattern `libname/dep1/dep2`
 
 ## ERL Quirks
 Due to not having loosy relocations, erl_dependencies cannot be processed after relocation, so you have to load them manually
@@ -48,6 +49,7 @@ int main(int argc, char* argv[]) {
 }
 ```
 ### Importing the Main ELF Symbol Table
+It is preffered to register Symbols manually using tables, see `runtime/ee/src/export.c` for an example
 ```c
 #include <stdio.h>
 #include <stdlib.h>
