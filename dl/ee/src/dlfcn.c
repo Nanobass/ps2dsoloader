@@ -20,7 +20,6 @@ void dl_raise(const char* msg) {
 }
 
 void* dlopen(const char* filename, int flags) {
-
     struct module_t* module = dl_get_module(filename);
 
     if(!module) {
@@ -60,6 +59,7 @@ void* dlsym(void* handle, const char* symbol) {
     if(sym) {
         return sym->address;
     } else {
+        printf("dlsym: symbol '%s' not found\n", symbol);
         dl_raise("symbol not found");
         return NULL;
     }

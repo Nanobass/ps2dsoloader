@@ -2,7 +2,7 @@ PROJECT_SRC=$(CURDIR)
 
 EXECUTABLE = runtime
 
-SUBDIRS = dl/ filer/
+SUBDIRS = dl/ filer/ lua/
 
 # main executable
 SUBDIRS += $(EXECUTABLE)
@@ -65,4 +65,4 @@ $(patsubst %, _cleandir_%, $(SUBDIRS)):
 #
 
 package: $(PACKAGE_FILES)
-	cp filer/libfiler.so $(PACKAGE_DIR)/erl/libfiler.so
+	cp filer/libfiler.so $(PACKAGE_DIR)/libfiler.so

@@ -20,12 +20,9 @@
 // PS2SDK Includes
 //========================================
 
-/* libc */
-#include <kernel.h>
-#include <loadfile.h>
-
-#define NEWLIB_PORT_AWARE
-#include <fileXio_rpc.h>
+/* liblua */
+#include <lua.h>
+#include <lauxlib.h>
 
 //========================================
 // Project Includes
@@ -37,53 +34,32 @@
 
 #define EXPORT __attribute__((visibility("default")))
 
-extern char data[];
-
-const char* id = "libfiler";
-
-extern int printf(const char* format, ...);
-
-#define mprintf(...) printf("filer: " __VA_ARGS__)
-
-EXPORT int filer_reset_iop() {
-    mprintf("resetting IOP...\n");
-    return 0;
+int foo(lua_State* L)
+{
+  lua_Integer a = luaL_checkinteger(L, 1);
+  lua_Integer b = luaL_checkinteger(L, 2);
+  lua_pushinteger(L, a + b);
+  return 1;
 }
 
-EXPORT int filer_device_control(const char* device_name, int cmd, int len, void* buf) {
-    mprintf("controlling device %s with cmd %d, len %d\n", device_name, cmd, len);
-    return 0;
+int bar(lua_State* L)
+{
+  lua_Integer a = luaL_checkinteger(L, 1);
+  lua_Integer b = luaL_checkinteger(L, 2);
+  lua_pushinteger(L, a - b);
+  return 1;
 }
 
-EXPORT int filer_module_control(const char* module_name, int cmd, int len, void* buf) {
-    mprintf("controlling module %s with cmd %d, len %d\n", module_name, cmd, len);
-    return 0;
-}
 
-EXPORT int filer_hello() {
-    mprintf("hello world\n");
-    return 0;
-}
+luaL_Reg const foolib[] = {
+  { "foo", foo },
+  { "bar", bar },
+  { 0, 0 }
+};
 
-EXPORT __attribute__((constructor)) int filer_init() {
-    mprintf("initializing filer... %s\n", id);
-    SifLoadModule("host0:/irx/iomanX.irx", 0, NULL);
-    SifLoadModule("host0:/irx/fileXio.irx", 0, NULL);
-    fileXioInit();
-    fileXioSetRWBufferSize(128 * 1024);
-    return 0;
-}
 
-EXPORT __attribute__((destructor)) int filer_shutdown() {
-    mprintf("shutting down filer... %s\n", id);
-    fileXioExit();
-    return 0;
-}
-
-EXPORT int _start(int argc, char *argv[]) {
-    mprintf("started\n");
-    mprintf("id: %p\n", &id);
-    mprintf("id: %p\n", id);
-    mprintf("id: %s\n", id);
-    return 0;
+EXPORT int luaopen_libfiler(lua_State* L)
+{
+  luaL_newlib(L, foolib);
+  return 1;
 }

@@ -1,7 +1,7 @@
 EE_BIN = runtime.elf
 
-EE_INCS = -I$(PROJECT_SRC)/dl/ee/include -I$(PROJECT_SRC)/filer/ee/include
-EE_LIBS = -L$(PROJECT_SRC)/dl/ -ldl
+EE_INCS = -I$(PROJECT_SRC)/dl/ee/include -I$(PROJECT_SRC)/filer/ee/include -I$(PROJECT_SRC)/lua/ee/include
+EE_LIBS = -L$(PROJECT_SRC)/dl/ -ldl -L$(PROJECT_SRC)/lua/ -llua
 
 EE_STD_LIBS = libc.a libcdvd.a libcglue.a libkernel.a libm.a libpthread.a libpthreadglue.a
 

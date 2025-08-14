@@ -77,7 +77,7 @@ int dl_remove_dependency(struct module_t* depender, struct module_t* provider)
 
             if (provider_count == 0) {
                 // calls dl_remove_depender internally
-                dl_free_module(current->provider);
+                if(current->provider != NULL) dl_free_module(current->provider);
             }
 
             free(current);
@@ -111,7 +111,7 @@ int dl_remove_depender(struct module_t* depender)
             }
 
             if (provider_count == 0) {
-                dl_free_module(current->provider);
+                if(current->provider != NULL) dl_free_module(current->provider);
             }
 
             free(current);

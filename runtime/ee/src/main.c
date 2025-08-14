@@ -26,12 +26,11 @@
 #include <kernel.h>
 
 #include <dl.h>
-
-#include <dso-loader.h>
-#include <erl-loader.h>
 #include <export-elf.h>
 
-#include <filer.h>
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
 
 void check_error() {
    const char* error = dlerror();
@@ -52,18 +51,15 @@ int main(int argc, char* argv[]) {
     dl_load_elf_symbols(file);
     fclose(file);
 
-    dl_set_module_path("erl");
-
-    // load dynamic object
-    struct module_t* filer = dlopen("libfiler.so", RTLD_NOW | RTLD_GLOBAL);
-    check_error();
-
-    struct module_t* fileXio = dlopen("libfileXio", RTLD_NOW | RTLD_GLOBAL);
-    check_error();
-
-    dlclose(filer);
-    printf("done using filer\n");
-    dlclose(fileXio);
+    lua_State *L;
+    L = luaL_newstate();
+    luaL_openlibs(L);
+    if (luaL_dofile(L, "script.lua") != LUA_OK) {
+        const char* error_msg = lua_tostring(L, -1);
+        printf("lua error: %s\n", error_msg);
+        lua_pop(L, 1);
+    }
+    lua_close(L);
 
     SleepThread();
     return 0;
