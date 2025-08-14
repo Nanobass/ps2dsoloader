@@ -27,7 +27,7 @@ struct static_library_t* static_libraries[] = {
     &(struct static_library_t){ libm_exports, "libmath" },
     &(struct static_library_t){ libpthread_exports, "libpthread" },
     &(struct static_library_t){ libpthreadglue_exports, "libpthreadglue" },
-    &(struct static_library_t){ libstdcxx_exports, "libstd++" },
+    &(struct static_library_t){ libstdcxx_exports, "libstdc++" },
     0
 };
 

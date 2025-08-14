@@ -4,7 +4,7 @@ EE_INCS = -I$(PROJECT_SRC)/lua/ee/include
 
 EE_CFLAGS += -fvisibility=hidden
 EE_CXXFLAGS += -fvisibility=hidden
-EE_LDFLAGS += -Wl,-soname,luasystem/liblua/libc/libstd++/libkernel
+EE_LDFLAGS += -Wl,-soname,luasystem/liblua/libc/libstdc++/libkernel
 
 all: $(EE_SHARED)
 	$(EE_STRIP) --strip-unneeded $(EE_SHARED)

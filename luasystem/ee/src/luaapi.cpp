@@ -41,6 +41,7 @@ extern "C" {
 
 #define EXPORT __attribute__((visibility("default")))
 
+/* very ugly hack */
 void* __dso_handle;
 
 extern "C" EXPORT int luaopen_luasystem(lua_State* L) noexcept try {
