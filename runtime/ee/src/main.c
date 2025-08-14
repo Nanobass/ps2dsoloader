@@ -11,35 +11,17 @@
 //=============================================================================
 
 /* standard library */
-#include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <string.h>
-#include <math.h>
-#include <malloc.h>
-#include <unistd.h>
-#include <setjmp.h>
 
 /* ps2sdk */
 #include <kernel.h>
 
 #include <dl.h>
-
 #include <exports.h>
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-
-void check_error() {
-   const char* error = dlerror();
-    if(error) {
-        printf("dlerror: %s\n", error);
-        abort();
-    }
-}
 
 int main(int argc, char* argv[]) {
     exports_add_global_symbols();
@@ -58,6 +40,7 @@ int main(int argc, char* argv[]) {
     lua_close(L);
 
     dl_print_dependencies();
+    dl_remove_depender(NULL);
 
     SleepThread();
     return 0;

@@ -11,6 +11,7 @@ extern struct export_list_t liblua_exports[];
 extern struct export_list_t libm_exports[];
 extern struct export_list_t libpthread_exports[];
 extern struct export_list_t libpthreadglue_exports[];
+extern struct export_list_t libstdcxx_exports[];
 
 struct static_library_t {
     struct export_list_t* exports;
@@ -26,6 +27,7 @@ struct static_library_t* static_libraries[] = {
     &(struct static_library_t){ libm_exports, "libmath" },
     &(struct static_library_t){ libpthread_exports, "libpthread" },
     &(struct static_library_t){ libpthreadglue_exports, "libpthreadglue" },
+    &(struct static_library_t){ libstdcxx_exports, "libstd++" },
     0
 };
 

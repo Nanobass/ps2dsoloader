@@ -5,7 +5,61 @@
 #include <stdlib.h>
 #include <string.h>
 
-static struct symbol_t* global_symbols = NULL, *global_symbols_tail = NULL;
+struct global_symbol_block_t {
+    struct global_symbol_block_t* next;
+    struct symbol_t* symbols;
+    size_t symbol_count;
+};
+
+static struct global_symbol_block_t* global_symbol_blocks = NULL, *global_symbol_blocks_tail = NULL;
+
+static int dl_add_global_symbol_block(struct symbol_t* symbols, size_t symbol_count)
+{
+    struct global_symbol_block_t* block = (struct global_symbol_block_t*)malloc(sizeof(struct global_symbol_block_t));
+    if (!block) {
+        dl_raise("out of memory for global symbol block");
+        return -1;
+    }
+    
+    block->symbols = symbols;
+    block->symbol_count = symbol_count;
+    block->next = NULL;
+
+    if (!global_symbol_blocks) {
+        global_symbol_blocks = block;
+        global_symbol_blocks_tail = block;
+    } else {
+        global_symbol_blocks_tail->next = block;
+        global_symbol_blocks_tail = block;
+    }
+
+    return 0;
+}
+
+static int dl_remove_global_symbol_block(struct symbol_t* symbols) {
+    struct global_symbol_block_t* current = global_symbol_blocks;
+    struct global_symbol_block_t* previous = NULL;
+
+    while (current) {
+        if (current->symbols == symbols) {
+            if (previous) {
+                previous->next = current->next;
+            } else {
+                global_symbol_blocks = current->next;
+            }
+            if (global_symbol_blocks_tail == current) {
+                global_symbol_blocks_tail = previous;
+            }
+
+            free(current);
+            return 0;
+        }
+        previous = current;
+        current = current->next;
+    }
+
+    return -1;
+}
 
 int dl_add_global_symbol(const char* name, void* address, uint32_t info)
 {
@@ -19,24 +73,21 @@ int dl_add_global_symbol(const char* name, void* address, uint32_t info)
         dl_raise("out of memory for global symbol");
         return -1;
     }
-    if(info & SI_CCHAR_NAME) symbol->name = (char*) name;
-    else symbol->name = strdup(name);
     
+    symbol->name = strdup(name);
     if (!symbol->name) {
         free(symbol);
         dl_raise("out of memory for global symbol name");
         return -1;
     }
+
     symbol->address = address;
     symbol->info = info;
-    symbol->next = NULL;
 
-    if (!global_symbols) {
-        global_symbols = symbol;
-        global_symbols_tail = symbol;
-    } else {
-        global_symbols_tail->next = symbol;
-        global_symbols_tail = symbol;
+    if (dl_add_global_symbol_block(symbol, 1) < 0) {
+        free(symbol->name);
+        free(symbol);
+        return -1;
     }
 
     printf("global symbol added: %-40s %-10s %-10s\n", name, symbol_types[ELF32_ST_TYPE(info)], binding_types[ELF32_ST_BIND(info)]);
@@ -51,24 +102,26 @@ void dl_remove_global_symbol(const char* name, uint32_t info)
         return;
     }
 
-    struct symbol_t* current = global_symbols;
-    struct symbol_t* previous = NULL;
-
+    struct global_symbol_block_t* current = global_symbol_blocks;
+    struct global_symbol_block_t* previous = NULL;
     while (current) {
-        if (strcmp(current->name, name) == 0 && current->info == info) {
+        if (current->symbol_count == 1 && !strcmp(current->symbols->name, name) && current->symbols->info == info) {
             if (previous) {
                 previous->next = current->next;
             } else {
-                global_symbols = current->next;
+                global_symbol_blocks = current->next;
             }
-            if (global_symbols_tail == current) {
-                global_symbols_tail = previous;
+            if (global_symbol_blocks_tail == current) {
+                global_symbol_blocks_tail = previous;
             }
+
+            struct symbol_t* current_symbol = current->symbols;
+
+            free(current);
 
             printf("global symbol removed: %-40s %-10s %-10s\n", name, symbol_types[ELF32_ST_TYPE(info)], binding_types[ELF32_ST_BIND(info)]);
 
-            if(!(info & SI_CCHAR_NAME)) free(current->name);
-            free(current);
+            free(current_symbol);
             return;
         }
         previous = current;
@@ -82,13 +135,8 @@ int dl_add_global_symbols(struct module_t* module)
         dl_raise("invalid module");
         return -1;
     }
-
-    for(uint32_t i = 0; i < module->symbol_count; i++) {
-        if(ELF32_ST_BIND(module->symbols[i].info) != STB_GLOBAL && ELF32_ST_BIND(module->symbols[i].info) != STB_WEAK) continue;
-        if (dl_add_global_symbol(module->symbols[i].name, module->symbols[i].address, module->symbols[i].info) < 0) {
-            return -1;
-        }
-    }
+    printf("global module added: %s\n", module->name);
+    dl_add_global_symbol_block(module->symbols, module->symbol_count);
     return 0;
 }
 
@@ -98,76 +146,38 @@ void dl_remove_global_symbols(struct module_t* module)
         dl_raise("invalid module");
         return;
     }
-
-    for(uint32_t i = 0; i < module->symbol_count; i++) {
-        if(ELF32_ST_BIND(module->symbols[i].info) != STB_GLOBAL && ELF32_ST_BIND(module->symbols[i].info) != STB_WEAK) continue;
-        dl_remove_global_symbol(module->symbols[i].name, module->symbols[i].info);
-    }
+    dl_remove_global_symbol_block(module->symbols);
+    printf("global module removed: %s\n", module->name);
 }
 
-struct symbol_t* dl_find_global_symbol(const char* name)
-{
+struct symbol_t* dl_find_global_symbol(const char* name) {
     struct symbol_t* symbol = NULL;
-    for(struct symbol_t* current = global_symbols; current; current = current->next) {
-        if (strcmp(current->name, name) == 0) {
-            if(!symbol) {
-                symbol = current;
-                continue;
-            }
-            if(ELF32_ST_BIND(symbol->info) == STB_WEAK && ELF32_ST_BIND(current->info) == STB_WEAK) {
+    for(struct global_symbol_block_t* block = global_symbol_blocks; block; block = block->next) {
+        for(size_t i = 0; i < block->symbol_count; i++) {
+            if (strcmp(block->symbols[i].name, name) == 0) {
+                if(!symbol) {
+                    symbol = &block->symbols[i];
+                    continue;
+                }
+                if(ELF32_ST_BIND(symbol->info) == STB_WEAK && ELF32_ST_BIND(block->symbols[i].info) == STB_WEAK) {
                 printf("warning: multiple weak symbols found for '%s', using first one\n", name);
                 continue;
-            }
-            if(ELF32_ST_BIND(symbol->info) == STB_WEAK && ELF32_ST_BIND(current->info) == STB_GLOBAL) {
-                symbol = current;
-                return symbol;
+                }
+                if(ELF32_ST_BIND(symbol->info) == STB_WEAK && ELF32_ST_BIND(block->symbols[i].info) == STB_GLOBAL) {
+                    symbol = &block->symbols[i];
+                    return symbol;
+                }
             }
         }
     }
     return symbol;
 }
 
-void dl_sort_global_symbols() {
-    struct symbol_t* sorted_head = NULL;
-    struct symbol_t* sorted_tail = NULL;
-    while (global_symbols) {
-        
-        struct symbol_t* min_prev = NULL;
-        struct symbol_t* min = global_symbols;
-        struct symbol_t* prev = global_symbols;
-        struct symbol_t* curr = global_symbols->next;
-        while (curr) {
-            if (strcmp(curr->name, min->name) < 0) {
-                min_prev = prev;
-                min = curr;
-            }
-            prev = curr;
-            curr = curr->next;
-        }
-        
-        if (min_prev) {
-            min_prev->next = min->next;
-        } else {
-            global_symbols = min->next;
-        }
-        
-        min->next = NULL;
-        if (!sorted_head) {
-            sorted_head = min;
-            sorted_tail = min;
-        } else {
-            sorted_tail->next = min;
-            sorted_tail = min;
-        }
-    }
-
-    global_symbols = sorted_head;
-    global_symbols_tail = sorted_tail;
-}
-
 void dl_dump_global_symbols() {
     printf("global symbols:\n");
-    for(struct symbol_t* current = global_symbols; current; current = current->next) {
-        printf("  %s: %p (info: %ld)\n", current->name, current->address, current->info);
+    for (struct global_symbol_block_t* block = global_symbol_blocks; block; block = block->next) {
+        for (size_t i = 0; i < block->symbol_count; i++) {
+            printf("  %s: %p (info: %ld)\n", block->symbols[i].name, block->symbols[i].address, block->symbols[i].info);
+        }
     }
 }

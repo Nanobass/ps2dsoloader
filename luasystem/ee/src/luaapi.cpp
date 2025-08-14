@@ -14,19 +14,26 @@
 // System Includes
 //========================================
 
-#include <stdio.h>
+#include <exception>
 
 //========================================
 // PS2SDK Includes
 //========================================
 
 /* liblua */
-#include <lua.h>
-#include <lauxlib.h>
+extern "C" {
+    #include <lua.h>
+    #include <lauxlib.h>
+}
 
 //========================================
 // Project Includes
 //========================================
+
+/* sol */
+
+#define SOL_ALL_SAFETIES_ON 1
+#include <sol/sol.hpp>
 
 //========================================
 // Definitions
@@ -34,32 +41,17 @@
 
 #define EXPORT __attribute__((visibility("default")))
 
-int foo(lua_State* L)
-{
-  lua_Integer a = luaL_checkinteger(L, 1);
-  lua_Integer b = luaL_checkinteger(L, 2);
-  lua_pushinteger(L, a + b);
-  return 1;
-}
+void* __dso_handle;
 
-int bar(lua_State* L)
-{
-  lua_Integer a = luaL_checkinteger(L, 1);
-  lua_Integer b = luaL_checkinteger(L, 2);
-  lua_pushinteger(L, a * b);
-  return 1;
-}
+extern "C" EXPORT int luaopen_luasystem(lua_State* L) noexcept try {
+    sol::state_view lua(L);
 
+    auto table = lua.create_table();
+    table["foo"] = [](int a, int b) { return a + b; };
+    table["bar"] = [](int a, int b) { return a * b; };
+    table.push();
 
-luaL_Reg const foolib[] = {
-  { "foo", foo },
-  { "bar", bar },
-  { 0, 0 }
-};
-
-
-EXPORT int luaopen_libfiler(lua_State* L)
-{
-  luaL_newlib(L, foolib);
-  return 1;
+    return 1;
+} catch (std::exception& e) {
+    return luaL_error(L, "%s", e.what());
 }
