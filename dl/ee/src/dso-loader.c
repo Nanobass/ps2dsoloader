@@ -359,7 +359,7 @@ struct module_t* dl_load_dso(FILE* file) {
             struct symbol_t* symbol = &module->symbols[symbol_index++];
             symbol->name = name;
             symbol->address = (void*) sym->st_value;
-            symbol->info = sym->st_info;
+            symbol->info = sym->st_info | SI_CCHAR_NAME;
         }
     }
 

@@ -42,6 +42,10 @@ int dl_free_module(struct module_t* module) {
             dl_remove_global_symbols(current);
             dl_remove_depender(current);
             printf("cleaned up module %s\n", current->name);
+            for(uint32_t i = 0; i < current->symbol_count; i++) {
+                struct symbol_t* symbol = &current->symbols[i];
+                if (!(symbol->info & SI_CCHAR_NAME)) free(symbol->name);
+            }
             if(current->symbols) free(current->symbols);
             if(current->dependencies) free(current->dependencies);
             free(current);
