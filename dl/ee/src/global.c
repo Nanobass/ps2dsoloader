@@ -73,7 +73,7 @@ int dl_add_global_symbol(const char* name, void* address, uint32_t info)
         dl_raise("out of memory for global symbol");
         return -1;
     }
-    
+
     symbol->name = strdup(name);
     if (!symbol->name) {
         free(symbol);
@@ -116,11 +116,9 @@ void dl_remove_global_symbol(const char* name, uint32_t info)
             }
 
             struct symbol_t* current_symbol = current->symbols;
-
             free(current);
-
             printf("global symbol removed: %-40s %-10s %-10s\n", name, symbol_types[ELF32_ST_TYPE(info)], binding_types[ELF32_ST_BIND(info)]);
-
+            free(current_symbol->name);
             free(current_symbol);
             return;
         }
