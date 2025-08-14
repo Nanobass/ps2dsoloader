@@ -15,6 +15,7 @@ Can be used by any standard library using `#include <dlfcn.h>`
 ## DSO Quirks
 Because the EE Toolchain isn't configured for shared library linking, you have to add your dependencies manually using `patchelf`
 The make variable `EE_NEEDED` does this automatically when buillding `EE_SHARED`
+
 Another way to add dependencies is to use `-Wl,-soname` and specifying this pattern `libname/dep1/dep2`
 
 ## ERL Quirks
