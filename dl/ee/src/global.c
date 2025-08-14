@@ -67,11 +67,7 @@ void dl_remove_global_symbol(const char* name, uint32_t info)
 
             printf("global symbol removed: %-40s %-10s %-10s\n", name, symbol_types[ELF32_ST_TYPE(info)], binding_types[ELF32_ST_BIND(info)]);
 
-            if(info & SI_CCHAR_NAME) {
-                // If the symbol name is a constant string, we don't free it
-            } else {
-                free(current->name);
-            }
+            if(!(info & SI_CCHAR_NAME)) free(current->name);
             free(current);
             return;
         }

@@ -46,7 +46,7 @@ void exports_add_global_symbols()
         for(uint32_t i = 0; i < count; i++) {
             module->symbols[i].name = (*lib)->exports[i].name;
             module->symbols[i].address = (*lib)->exports[i].pointer;
-            module->symbols[i].info = ELF32_ST_INFO(STB_GLOBAL, STT_FUNC);
+            module->symbols[i].info = ELF32_ST_INFO(STB_GLOBAL, STT_FUNC) | SI_CCHAR_NAME;
             module->symbols[i].module = module;
         }
         module->name = (char*) (*lib)->name;
