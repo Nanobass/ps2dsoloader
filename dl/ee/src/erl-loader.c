@@ -208,6 +208,8 @@ struct module_t* dl_load_erl(FILE* file)
                         } else {
                             printf("                         ");
                         }
+                    } else {
+                        printf("                         ");
                     }
                     apply_reloc(ctx, reloc_address, ELF32_R_TYPE(reloc->r_info), ctx->shdr[elf_symbol->st_shndx].sh_addr + addend);
                 }break;
