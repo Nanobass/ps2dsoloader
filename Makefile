@@ -65,4 +65,4 @@ $(patsubst %, _cleandir_%, $(SUBDIRS)):
 #
 
 package: $(PACKAGE_FILES)
-	cp filer/libfiler.so $(PACKAGE_DIR)/libfiler.so
+	cp filer/libfiler.so $(PACKAGE_DIR)/erl/libfiler.so

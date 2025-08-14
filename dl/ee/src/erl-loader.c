@@ -125,7 +125,7 @@ struct module_t* dl_load_erl(FILE* file)
 
     dso_print_section_headers(ctx);
 
-    dso_allocate_module(ctx, module_size);
+    dso_allocate_module(ctx, module_size, DL_MT_ERL);
     dso_read_module_sections(ctx);
 
     Elf32_Section symtab_index = 0, symstr_index = 0;

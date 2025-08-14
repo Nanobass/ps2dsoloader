@@ -33,7 +33,7 @@ void dso_print_section_headers(struct elf_load_context_t* ctx);
 void dso_print_dynamic_tags(struct elf_load_context_t* ctx);
 void dso_print_symbol_table(struct elf_load_context_t* ctx, Elf32_Sym* symtab, size_t sym_count, const char* strtab);
 
-void dso_allocate_module(struct elf_load_context_t* ctx, size_t extra);
+void dso_allocate_module(struct elf_load_context_t* ctx, size_t extra, int type);
 void dso_read_module_sections(struct elf_load_context_t* ctx);
 
 void dso_allocate_extra_section(struct elf_load_context_t* ctx, Elf32_Section index);

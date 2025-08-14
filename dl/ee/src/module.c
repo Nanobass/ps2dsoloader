@@ -5,13 +5,14 @@
 
 static struct module_t* modules = NULL, *modules_tail = NULL;
 
-struct module_t* dl_allocate_module(size_t size) {
+struct module_t* dl_allocate_module(size_t size, int type) {
     struct module_t* module = (struct module_t*)malloc(sizeof(struct module_t) + size);
     if (!module) {
         return NULL;
     }
     memset(module, 0, sizeof(struct module_t) + size);
     module->size = size;
+    module->type = type;
     if(!modules) {
         modules = module;
         modules_tail = module;
@@ -28,10 +29,6 @@ int dl_free_module(struct module_t* module) {
 
     while (current) {
         if (current == module) {
-            printf("deleting module %s\n", current->name);
-            dl_remove_depender(current);
-            dl_remove_global_symbols(current);
-            dl_module_fini(current);
             if (previous) {
                 previous->next = current->next;
             } else {
@@ -40,6 +37,11 @@ int dl_free_module(struct module_t* module) {
             if (modules_tail == current) {
                 modules_tail = previous;
             }
+            printf("deleting module %s\n", current->name);
+            dl_module_fini(current);
+            dl_remove_global_symbols(current);
+            dl_remove_depender(current);
+            printf("cleaned up module %s\n", current->name);
             if(current->symbols) free(current->symbols);
             if(current->dependencies) free(current->dependencies);
             free(current);

@@ -10,6 +10,11 @@
 
 #include <elf.h>
 
+#define DL_MT_UNDEF 0
+#define DL_MT_ERL 1
+#define DL_MT_DSO 2
+#define DL_MT_NUM 3
+
 struct module_t;
 
 typedef int (*_start_t)(int, char**);
@@ -39,6 +44,8 @@ struct module_t {
     _init_t init;
     _fini_t fini;
 
+    int type;
+
     void* extra;
 
     size_t size;
@@ -59,11 +66,27 @@ struct dependency_t {
 void dl_raise(const char* msg);
 
 /**
+ * set the module path, string is copied
+ * @param path the module path
+ */
+void dl_set_module_path(const char* path);
+
+const char* dl_module_path();
+
+struct module_t* dl_load_module(const char* filename);
+
+void dl_resolve_module(struct module_t* module);
+
+bool dl_is_module_present(const char* name);
+
+struct module_t* dl_get_module(const char* name);
+
+/**
  * allocate a new module
  * @param size the size of the module
  * @return a pointer to the new module, or NULL on failure
  */
-struct module_t* dl_allocate_module(size_t size);
+struct module_t* dl_allocate_module(size_t size, int type);
 
 /**
  * free a module

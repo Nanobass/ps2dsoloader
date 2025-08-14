@@ -20,34 +20,19 @@ void dl_raise(const char* msg) {
 }
 
 void* dlopen(const char* filename, int flags) {
-    
-    FILE* elf_handle = fopen(filename, "rb");
-    if (!elf_handle) {
-        dl_raise("cannot open file");
-        return NULL;
-    }
 
-    struct module_t* module = NULL;
-    const char* ext = strrchr(filename, '.');
-
-    if(!strcmp(ext, ".so")) {
-        module = dl_load_dso(elf_handle);
-    } else if(!strcmp(ext, ".erl")) {
-        module = dl_load_erl(elf_handle);
-    } else {
-        dl_raise("unsupported file type");
-    }
-    
-    fclose(elf_handle);
+    struct module_t* module = dl_get_module(filename);
 
     if(!module) {
+        module = dl_load_module(filename);
+    }
+
+    if (!module) {
         return NULL;
     }
 
     if(flags & RTLD_NOW) {
-        if(!strcmp(ext, ".so")) {
-            dl_resolve_dso(module);
-        }
+        dl_resolve_module(module);
     }
 
     if(flags & RTLD_GLOBAL) {

@@ -216,7 +216,7 @@ void dso_print_symbol_table(struct elf_load_context_t* ctx, Elf32_Sym* symtab, s
     }
 }
 
-void dso_allocate_module(struct elf_load_context_t* ctx, size_t extra)
+void dso_allocate_module(struct elf_load_context_t* ctx, size_t extra, int type)
 {
     size_t module_size = 0;
     for(int i = 0; i < ctx->ehdr.e_phnum; i++) {
@@ -235,7 +235,7 @@ void dso_allocate_module(struct elf_load_context_t* ctx, size_t extra)
     module_size += extra;
 
     printf("module size: 0x%08X\n", module_size);
-    ctx->module = dl_allocate_module(module_size);
+    ctx->module = dl_allocate_module(module_size, type);
     if(extra) {
         ctx->module->extra = ctx->module->base + module_size - extra;
     } else {

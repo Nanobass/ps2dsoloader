@@ -73,7 +73,6 @@ void dl_remove_global_symbol(const char* name, uint32_t info)
         previous = current;
         current = current->next;
     }
-    dl_raise("global symbol not found");
 }
 
 int dl_add_global_symbols(struct module_t* module)

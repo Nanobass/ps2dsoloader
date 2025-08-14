@@ -47,10 +47,6 @@ extern int printf(const char* format, ...);
 
 EXPORT int filer_reset_iop() {
     mprintf("resetting IOP...\n");
-    SifLoadModule("host0:/irx/iomanX.irx", 0, NULL);
-    SifLoadModule("host0:/irx/fileXio.irx", 0, NULL);
-    fileXioInit();
-    fileXioSetRWBufferSize(128 * 1024);
     return 0;
 }
 
@@ -71,6 +67,10 @@ EXPORT int filer_hello() {
 
 EXPORT __attribute__((constructor)) int filer_init() {
     mprintf("initializing filer... %s\n", id);
+    SifLoadModule("host0:/irx/iomanX.irx", 0, NULL);
+    SifLoadModule("host0:/irx/fileXio.irx", 0, NULL);
+    fileXioInit();
+    fileXioSetRWBufferSize(128 * 1024);
     return 0;
 }
 

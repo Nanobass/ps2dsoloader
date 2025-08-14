@@ -52,36 +52,18 @@ int main(int argc, char* argv[]) {
     dl_load_elf_symbols(file);
     fclose(file);
 
-    struct module_t* erl = dlopen("erl/libfileXio.erl", RTLD_NOW | RTLD_GLOBAL);
-    check_error();
+    dl_set_module_path("erl");
 
     // load dynamic object
-    struct module_t* filer = dlopen("libfiler.so", RTLD_LAZY | RTLD_GLOBAL);
+    struct module_t* filer = dlopen("libfiler.so", RTLD_NOW | RTLD_GLOBAL);
     check_error();
 
-    _start_t _start = (_start_t)dlsym(filer, "_start");
+    struct module_t* fileXio = dlopen("libfileXio", RTLD_NOW | RTLD_GLOBAL);
     check_error();
-    int ret = _start(argc, argv);
-    printf("start returned: %d\n", ret);
-
-    filer_hello_t filer_hello = (filer_hello_t)dlsym(filer, "filer_hello");
-    check_error();
-    filer_hello();
-
-    filer_device_control_t filer_device_control = (filer_device_control_t)dlsym(filer, "filer_device_control");
-    check_error();
-    filer_device_control("device_name", 0, 0, NULL);
-
-    filer_module_control_t filer_module_control = (filer_module_control_t)dlsym(filer, "filer_module_control");
-    check_error();
-    filer_module_control("module_name", 0, 0, NULL);
-
-    filer_reset_iop_t filer_reset_iop = (filer_reset_iop_t)dlsym(filer, "filer_reset_iop");
-    check_error();
-    filer_reset_iop();
 
     dlclose(filer);
-    dlclose(erl);
+    printf("done using filer\n");
+    dlclose(fileXio);
 
     SleepThread();
     return 0;

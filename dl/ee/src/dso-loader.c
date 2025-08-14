@@ -47,7 +47,23 @@ void* dso_loader_resolve(struct module_t* module, uint32_t dynsym_index) {
     struct dso_context_t* ctx = get_dso_context(module);
     Elf32_Sym* symbol = &ctx->dynsym[dynsym_index];
     const char* name = &ctx->dynstr[symbol->st_name];
-    struct symbol_t* resolved = dl_find_global_symbol(name);
+    struct symbol_t* resolved = NULL;
+
+    for(char** dependency = module->dependencies; *dependency; dependency++) {
+        struct module_t* dep_module = dl_get_module(*dependency);
+        if(dep_module) {
+            resolved = dl_module_find_symbol(dep_module, name);
+            if(resolved) {
+                dl_add_dependency(module, dep_module);
+                break;
+            }
+        }
+    }
+
+    if(!resolved) {
+        resolved = dl_find_global_symbol(name);
+        dl_add_dependency(module, NULL);
+    }
     if(!resolved) {
         printf("failed to resolve symbol: %s\n", name);
         abort();
@@ -126,7 +142,7 @@ struct module_t* dl_load_dso(FILE* file) {
     dso_read_section_headers(ctx);
     dso_print_section_headers(ctx);
 
-    dso_allocate_module(ctx, sizeof(struct dso_context_t));
+    dso_allocate_module(ctx, sizeof(struct dso_context_t), DL_MT_DSO);
     dso_read_module_sections(ctx);
 
     struct dso_context_t* dso_ctx = get_dso_context(ctx->module);
@@ -322,6 +338,19 @@ struct module_t* dl_load_dso(FILE* file) {
     }
 
     dso_print_symbol_table(ctx, dso_ctx->dynsym, dso_ctx->dynsym_count, dso_ctx->dynstr);
+
+    // request dependencies
+
+    for(char** dependency = module->dependencies; *dependency; dependency++) {
+        struct module_t* dep_module = dl_get_module(*dependency);
+        if(!dep_module) dep_module = dl_load_module(*dependency);
+        if(dep_module) {
+            dl_add_dependency(module, dep_module);
+        } else {
+            dl_raise("failed to load dependency");
+            return NULL;
+        }
+    }
 
     // resolve non-function symbols
 

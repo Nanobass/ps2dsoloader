@@ -4,6 +4,8 @@ EE_CFLAGS += -fvisibility=hidden
 EE_CXXFLAGS += -fvisibility=hidden
 EE_LDFLAGS += -Wl,-soname,$(EE_SHARED)
 
+EE_NEEDED += libfileXio
+
 all: $(EE_SHARED)
 	$(EE_STRIP) --strip-unneeded $(EE_SHARED)
 clean: 

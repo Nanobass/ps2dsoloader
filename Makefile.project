@@ -160,6 +160,9 @@ $(EE_ERL): $(EE_OBJS)
 
 $(EE_SHARED): $(EE_OBJS)
 	$(EE_CXX) $(EE_OPTFLAGS) -o $(EE_SHARED) $(EE_OBJS) -shared $(EE_LDFLAGS) $(EE_LIBS)
+	for file in $(EE_NEEDED); do \
+		patchelf --add-needed $$file $(EE_SHARED); \
+	done
 
 $(EE_LIB): $(EE_OBJS)
 	$(EE_AR) cru $(EE_LIB) $(EE_OBJS)

@@ -76,11 +76,11 @@ int dl_remove_dependency(struct module_t* depender, struct module_t* provider)
             }
 
             if (provider_count == 0) {
+                // calls dl_remove_depender internally
                 dl_free_module(current->provider);
             }
 
             free(current);
-            
             return 0;
         }
         previous = current;
@@ -95,13 +95,23 @@ int dl_remove_depender(struct module_t* depender)
     struct dependency_t* previous = NULL;
 
     while (current) {
+
         if (current->depender == depender) {
-            printf("deleting dependency: %s -> %s; count: %d\n", modulename(depender), modulename(current->provider), current->count);
+            printf("deleting dependency: %s -> %s; deallocated count: %d\n", modulename(depender), modulename(current->provider), current->count);
 
             if (previous) {
                 previous->next = current->next;
             } else {
                 dependencies = current->next;
+            }
+
+            int provider_count = 0;
+            for(struct dependency_t* current_provider = dependencies; current_provider; current_provider = current_provider->next) {
+                if (current_provider->provider == current->provider) provider_count++;
+            }
+
+            if (provider_count == 0) {
+                dl_free_module(current->provider);
             }
 
             free(current);
