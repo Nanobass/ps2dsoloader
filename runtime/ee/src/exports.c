@@ -23,7 +23,7 @@ struct static_library_t* static_libraries[] = {
     &(struct static_library_t){ libcglue_exports, "libcglue" },
     &(struct static_library_t){ libkernel_exports, "libkernel" },
     &(struct static_library_t){ liblua_exports, "liblua" },
-    &(struct static_library_t){ libm_exports, "libm" },
+    &(struct static_library_t){ libm_exports, "libmath" },
     &(struct static_library_t){ libpthread_exports, "libpthread" },
     &(struct static_library_t){ libpthreadglue_exports, "libpthreadglue" },
     0
