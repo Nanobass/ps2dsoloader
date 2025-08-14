@@ -180,9 +180,35 @@ struct module_t* dl_load_dso(FILE* file) {
     Elf32_Dyn* dyn = (Elf32_Dyn*)ctx->shdr[dynamic_index].sh_addr;
     for(; dyn->d_tag != DT_NULL; dyn++) {
         switch(dyn->d_tag) {
-            case DT_SONAME:
-                ctx->module->name = &dso_ctx->dynstr[dyn->d_un.d_val];
+            case DT_SONAME: {
+                char* soname = &dso_ctx->dynstr[dyn->d_un.d_val];
+                char* slash = strchr(soname, '/');
+                if (!slash) {
+                    ctx->module->name = soname;
+                } else {
+                    // Count segments
+                    needed_count++;
+                    for (char* p = slash + 1; *p; p++) {
+                        if (*p == '/') needed_count++;
+                    }
+                    // Free previous dependencies
+                    if (ctx->module->dependencies) free(ctx->module->dependencies);
+                    ctx->module->dependencies = (char**)malloc((needed_count + 1) * sizeof(char*));
+                    if (!ctx->module->dependencies) {
+                        dso_error(ctx, "failed to allocate memory for dependencies");
+                    }
+                    ctx->module->dependencies[needed_count] = NULL;
+                    char* p = soname;
+                    ctx->module->name = p;
+                    int idx = 0;
+                    while ((slash = strchr(p, '/'))) {
+                        *slash = '\0';
+                        p = slash + 1;
+                        ctx->module->dependencies[idx++] = p;
+                    }
+                }
                 break;
+            }
             case DT_NEEDED:
                 ctx->module->dependencies[needed_index++] = &dso_ctx->dynstr[dyn->d_un.d_val];
                 break;
@@ -338,6 +364,11 @@ struct module_t* dl_load_dso(FILE* file) {
     }
 
     dso_print_symbol_table(ctx, dso_ctx->dynsym, dso_ctx->dynsym_count, dso_ctx->dynstr);
+
+    printf("module name: %s\n", module->name);
+    for(char** dependency = module->dependencies; *dependency; dependency++) {
+        printf("  dependency: %s\n", *dependency);
+    }
 
     // request dependencies
 

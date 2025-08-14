@@ -46,7 +46,7 @@ int bar(lua_State* L)
 {
   lua_Integer a = luaL_checkinteger(L, 1);
   lua_Integer b = luaL_checkinteger(L, 2);
-  lua_pushinteger(L, a - b);
+  lua_pushinteger(L, a * b);
   return 1;
 }
 

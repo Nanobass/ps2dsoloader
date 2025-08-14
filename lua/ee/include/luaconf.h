@@ -13,6 +13,8 @@
 
 #define LUA_USE_C89 1
 #define LUA_USE_DLOPEN 1
+#define LUA_PATH_DEFAULT "?.lua;" "?/init.lua"
+#define LUA_CPATH_DEFAULT "?.so;" "?.erl;" "erx/?.so;" "erx/?.erl"
 
 /*
 ** ===================================================================

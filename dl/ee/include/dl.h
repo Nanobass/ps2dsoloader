@@ -15,6 +15,8 @@
 #define DL_MT_DSO 2
 #define DL_MT_NUM 3
 
+#define SI_CCHAR_NAME (1 << 31)
+
 struct module_t;
 
 typedef int (*_start_t)(int, char**);
@@ -112,6 +114,7 @@ struct symbol_t* dl_module_find_symbol(struct module_t* module, const char* name
 int dl_add_dependency(struct module_t* depender, struct module_t* provider);
 int dl_remove_dependency(struct module_t* depender, struct module_t* provider);
 int dl_remove_depender(struct module_t* depender);
+void dl_print_dependencies();
 
 /**
  * add a global symbol

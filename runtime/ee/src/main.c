@@ -26,7 +26,8 @@
 #include <kernel.h>
 
 #include <dl.h>
-#include <export-elf.h>
+
+#include <exports.h>
 
 #include <lua.h>
 #include <lualib.h>
@@ -41,25 +42,22 @@ void check_error() {
 }
 
 int main(int argc, char* argv[]) {
-
-    // load main elf symbol table
-    FILE* file = fopen(argv[0], "rb");
-    if (!file) {
-        perror("fopen");
-        abort();
-    }
-    dl_load_elf_symbols(file);
-    fclose(file);
+    exports_add_global_symbols();
+    
+    dl_set_module_path("erx");
 
     lua_State *L;
     L = luaL_newstate();
     luaL_openlibs(L);
+
     if (luaL_dofile(L, "script.lua") != LUA_OK) {
         const char* error_msg = lua_tostring(L, -1);
         printf("lua error: %s\n", error_msg);
         lua_pop(L, 1);
     }
     lua_close(L);
+
+    dl_print_dependencies();
 
     SleepThread();
     return 0;

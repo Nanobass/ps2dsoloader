@@ -33,6 +33,18 @@ struct module_t* dl_load_module(const char* filename)
         snprintf(path, sizeof(path), "%s/%s.erl", dl_module_path(), filename);
         file_handle = fopen(path, "rb");
     }
+    if(!file_handle) {
+        snprintf(path, sizeof(path), "%s", filename);
+        file_handle = fopen(path, "rb");    
+    }
+    if(!file_handle) {
+        snprintf(path, sizeof(path), "%s.so", filename);
+        file_handle = fopen(path, "rb");    
+    }
+    if(!file_handle) {
+        snprintf(path, sizeof(path), "%s.erl", filename);
+        file_handle = fopen(path, "rb");
+    }
     if (!file_handle) {
         dl_raise("cannot open file");
         return NULL;
