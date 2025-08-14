@@ -160,7 +160,7 @@ struct module_t* dl_load_erl(FILE* file)
 
         dso_allocate_extra_section(ctx, i);
 
-        printf("######: offset   type symbol                                        kind\n");
+        printf("######: offset   type      symbol                                   kind\n");
         for(size_t j = 0; j < section->sh_size / section->sh_entsize; j++) {
 
             Elf32_Rel* reloc = (Elf32_Rel*) (section->sh_addr + j * section->sh_entsize);
@@ -204,7 +204,7 @@ struct module_t* dl_load_erl(FILE* file)
                             // apply high and low relocations together
                             uint32_t data = *(uint32_t*)((uint8_t*)ctx->shdr[section->sh_info].sh_addr + reloc->r_offset);
                             *(uint32_t*)((uint8_t*)ctx->shdr[section->sh_info].sh_addr + reloc->r_offset) = data + !(data & 0xf);
-                            printf("R_MIPS_HI16/R_MIPS_LO16 merge");
+                            printf("HI16/LO16 fix            ");
                         } else {
                             printf("                         ");
                         }
