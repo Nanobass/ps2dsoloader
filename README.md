@@ -11,3 +11,69 @@ Can be used by any standard library using `#include <dlfcn.h>`
 - Runtime lazy symbol resolution
 - ERL improvements 
 - Separate local and global symbol table
+
+## DSO Quirks
+Because the EE Toolchain isn't configured for shared library linking, you have to add your dependencies manually using `patchelf`
+The make variable `EE_NEEDED` does this automatically when buillding `EE_SHARED`
+
+## ERL Quirks
+Due to not having loosy relocations, erl_dependencies cannot be processed after relocation, so you have to load them manually
+
+## Usage
+The headers are mostly documented but for a quick start I've included some samples here
+### Loading a Shared Library
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <dl.h>
+
+int main(int argc, char* argv[]) {
+    // default search path is "" (cwd); extension is optional dlopen will try .so and .erl
+    void* handle = dlopen("libfileXio", RTLD_NOW); // RTLD_NOW is recommended
+    const char* error = dlerror();
+    if(error) {
+        // handle error
+        printf("dlerror: %s\n", error);
+        abort();
+    }
+    void* symbol = dlsym(handle, "symbol");
+    if(error) {
+        // handle error
+        printf("dlerror: %s\n", error);
+        abort();
+    }
+    dlclose(handle);
+    return 0;
+}
+```
+### Importing the Main ELF Symbol Table
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <dl.h>
+#include <export-elf.h>
+
+int main(int argc, char* argv[]) {
+    // argv should be the main elf
+    FILE* file = fopen(argv[0], "rb");
+    if (!file) {
+        printf("main elf file not found\n");
+        abort();
+    }
+    dl_load_elf_symbols(file);
+    fclose(file);
+    return 0;
+}
+```
+### Changing LD_LIBRARY_PATH
+```c
+#include <dl.h>
+
+int main(int argc, char* argv[]) {
+    // set to $(cwd)/erl
+    dl_set_module_path("erl");
+    return 0;
+}
+```
