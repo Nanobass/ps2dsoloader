@@ -2,17 +2,20 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <malloc.h>
 
 static struct module_t* modules = NULL, *modules_tail = NULL;
 
-struct module_t* dl_allocate_module(size_t size, int type) {
-    struct module_t* module = (struct module_t*)malloc(sizeof(struct module_t) + size);
+struct module_t* dl_allocate_module(size_t size, size_t align, int type) {
+    size_t aligned_module_size = dl_align_address(sizeof(struct module_t), align);
+    struct module_t* module = (struct module_t*)memalign(align, aligned_module_size + size);
     if (!module) {
         return NULL;
     }
     memset(module, 0, sizeof(struct module_t) + size);
-    module->size = size;
     module->type = type;
+    module->size = size;
+    module->base = (uint8_t*)module + aligned_module_size;
     if(!modules) {
         modules = module;
         modules_tail = module;

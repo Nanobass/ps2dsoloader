@@ -2,6 +2,8 @@
 
 #include <dlfcn.h>
 
+#include <debug-info.h> 
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -26,10 +28,7 @@ typedef void (*_init_t)(struct module_t*);
 typedef void (*_fini_t)(struct module_t*);
 
 struct symbol_t {
-    union {
-        struct module_t* module; // for local symbol
-        struct symbol_t* next;   // for global symbol
-    };
+    struct module_t* module;
     char* name;
     uint32_t info;
     void* address;
@@ -48,10 +47,9 @@ struct module_t {
 
     int type;
 
-    void* extra;
-
     size_t size;
-    uint8_t base[];
+    uint8_t* base;
+    uint8_t* extra;
 };
 
 struct dependency_t {
@@ -83,12 +81,18 @@ bool dl_is_module_present(const char* name);
 
 struct module_t* dl_get_module(const char* name);
 
+size_t dl_get_memory_total(size_t* moduleTotal, size_t* symbolTotal, size_t* stringTotal);
+
+void dl_print_memory_usage();
+
 /**
  * allocate a new module
  * @param size the size of the module
+ * @param align aligns the base address
+ * @param type used internally to differentiate ERL/DSO/Exports
  * @return a pointer to the new module, or NULL on failure
  */
-struct module_t* dl_allocate_module(size_t size, int type);
+struct module_t* dl_allocate_module(size_t size, size_t align, int type);
 
 /**
  * free a module
@@ -159,3 +163,5 @@ void dl_sort_global_symbols();
  * dump all global symbols
  */
 void dl_dump_global_symbols();
+
+uint32_t dl_align_address(uint32_t x, uint8_t align);

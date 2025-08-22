@@ -12,6 +12,7 @@ extern struct export_list_t libm_exports[];
 extern struct export_list_t libpthread_exports[];
 extern struct export_list_t libpthreadglue_exports[];
 extern struct export_list_t libstdcxx_exports[];
+extern struct export_list_t libgcc_exports[];
 
 struct static_library_t {
     struct export_list_t* exports;
@@ -28,13 +29,16 @@ struct static_library_t* static_libraries[] = {
     &(struct static_library_t){ libpthread_exports, "libpthread" },
     &(struct static_library_t){ libpthreadglue_exports, "libpthreadglue" },
     &(struct static_library_t){ libstdcxx_exports, "libstdc++" },
+    &(struct static_library_t){ libgcc_exports, "libgcc" },
     0
 };
+
+extern void* _gp;
 
 void exports_add_global_symbols()
 {
     for (struct static_library_t** lib = static_libraries; *lib; lib++) {
-        struct module_t* module = dl_allocate_module(0, DL_MT_UNDEF);
+        struct module_t* module = dl_allocate_module(0, 16, DL_MT_UNDEF);
         if (!module) {
             dl_raise("Failed to allocate module");
             return;
@@ -56,4 +60,10 @@ void exports_add_global_symbols()
         dl_add_dependency(NULL, module);
         dl_add_global_symbols(module);
     }
+    dl_add_global_symbol("_gp", &_gp, ELF32_ST_INFO(STB_GLOBAL, STT_NOTYPE));
+    dl_add_global_symbol("dlopen", &dlopen, ELF32_ST_INFO(STB_GLOBAL, STT_FUNC));
+    dl_add_global_symbol("dlsym", &dlsym, ELF32_ST_INFO(STB_GLOBAL, STT_FUNC));
+    dl_add_global_symbol("dlerror", &dlerror, ELF32_ST_INFO(STB_GLOBAL, STT_FUNC));
+    dl_add_global_symbol("dlclose", &dlclose, ELF32_ST_INFO(STB_GLOBAL, STT_FUNC));
+    dl_print_memory_usage();
 }

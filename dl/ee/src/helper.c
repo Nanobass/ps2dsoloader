@@ -62,6 +62,8 @@ struct module_t* dl_load_module(const char* filename)
     
     fclose(file_handle);
 
+    dl_print_memory_usage();
+
     return module;
 }
 
@@ -89,4 +91,49 @@ struct module_t* dl_get_module(const char* name)
         module = module->next;
     }
     return NULL;
+}
+
+size_t dl_get_memory_total(size_t* moduleTotal, size_t* symbolTotal, size_t* stringTotal) {
+    size_t total = 0;
+
+    if (moduleTotal) *moduleTotal = 0;
+    if (symbolTotal) *symbolTotal = 0;
+    if (stringTotal) *stringTotal = 0;
+
+    for(struct module_t* module = dl_module_root(); module; module = module->next) {
+        if (moduleTotal) *moduleTotal += sizeof(struct module_t) + module->size;
+        total += sizeof(struct module_t) + module->size;
+
+        if (symbolTotal) *symbolTotal += module->symbol_count * sizeof(struct symbol_t);
+        total += module->symbol_count * sizeof(struct symbol_t);
+
+        for (uint32_t i = 0; i < module->symbol_count; i++) {
+            if (!(module->symbols[i].info & SI_CCHAR_NAME)) {
+                size_t name_length = strlen(module->symbols[i].name) + 1;
+                if (stringTotal) *stringTotal += name_length;
+                total += name_length;
+            }
+        }
+    }
+
+    return total;
+}
+
+void dl_print_memory_usage() {
+    size_t moduleTotal = 0, symbolTotal = 0, stringTotal = 0;
+    size_t total = dl_get_memory_total(&moduleTotal, &symbolTotal, &stringTotal);
+    printf("memory usage:\n");
+    printf("  modules: %zu bytes\n", moduleTotal);
+    printf("  symbols: %zu bytes\n", symbolTotal);
+    printf("  strings: %zu bytes\n", stringTotal);
+    printf("  total  : %zu bytes\n", total);
+}
+
+uint32_t dl_align_address(uint32_t x, uint8_t align) {
+    align--;
+    if (x & align) {
+        x |= align;
+        x++;
+    }
+    return x;
 }

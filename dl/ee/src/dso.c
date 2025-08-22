@@ -44,29 +44,29 @@ void dso_read_elf_header(struct elf_load_context_t* ctx, uint16_t type)
         dso_error(ctx, "failed to read elf header");
     }
 
-    printf("elf header:\n");
-    printf("  magic:   %02x %02x %02x %02x\n",
+    dl_debug_printf(DL_DBG_EHDR, "elf header:\n");
+    dl_debug_printf(DL_DBG_EHDR, "  magic:   %02x %02x %02x %02x\n",
            ctx->ehdr.e_ident[EI_MAG0],
            ctx->ehdr.e_ident[EI_MAG1],
            ctx->ehdr.e_ident[EI_MAG2],
            ctx->ehdr.e_ident[EI_MAG3]);
-    printf("  class:   %d\n", ctx->ehdr.e_ident[EI_CLASS]);
-    printf("  data:    %d\n", ctx->ehdr.e_ident[EI_DATA]);
-    printf("  version: %d\n", ctx->ehdr.e_ident[EI_VERSION]);
-    printf("  os/abi:  %d\n", ctx->ehdr.e_ident[EI_OSABI]);
-    printf("  type:    %d\n", ctx->ehdr.e_type);
-    printf("  machine: %d\n", ctx->ehdr.e_machine);
-    printf("  version: %ld\n", ctx->ehdr.e_version);
-    printf("  entry:   0x%08lX\n", ctx->ehdr.e_entry);
-    printf("  ph_offset: 0x%08lX\n", ctx->ehdr.e_phoff);
-    printf("  sh_offset: 0x%08lX\n", ctx->ehdr.e_shoff);
-    printf("  flags:   0x%08lX\n", ctx->ehdr.e_flags);
-    printf("  eh_size: %d\n", ctx->ehdr.e_ehsize);
-    printf("  ph_ent_size: %d\n", ctx->ehdr.e_phentsize);
-    printf("  ph_num:  %d\n", ctx->ehdr.e_phnum);
-    printf("  sh_ent_size: %d\n", ctx->ehdr.e_shentsize);
-    printf("  sh_num:  %d\n", ctx->ehdr.e_shnum);
-    printf("  sh_strndx: %d\n", ctx->ehdr.e_shstrndx);
+    dl_debug_printf(DL_DBG_EHDR, "  class:   %d\n", ctx->ehdr.e_ident[EI_CLASS]);
+    dl_debug_printf(DL_DBG_EHDR, "  data:    %d\n", ctx->ehdr.e_ident[EI_DATA]);
+    dl_debug_printf(DL_DBG_EHDR, "  version: %d\n", ctx->ehdr.e_ident[EI_VERSION]);
+    dl_debug_printf(DL_DBG_EHDR, "  os/abi:  %d\n", ctx->ehdr.e_ident[EI_OSABI]);
+    dl_debug_printf(DL_DBG_EHDR, "  type:    %d\n", ctx->ehdr.e_type);
+    dl_debug_printf(DL_DBG_EHDR, "  machine: %d\n", ctx->ehdr.e_machine);
+    dl_debug_printf(DL_DBG_EHDR, "  version: %ld\n", ctx->ehdr.e_version);
+    dl_debug_printf(DL_DBG_EHDR, "  entry:   0x%08lX\n", ctx->ehdr.e_entry);
+    dl_debug_printf(DL_DBG_EHDR, "  ph_offset: 0x%08lX\n", ctx->ehdr.e_phoff);
+    dl_debug_printf(DL_DBG_EHDR, "  sh_offset: 0x%08lX\n", ctx->ehdr.e_shoff);
+    dl_debug_printf(DL_DBG_EHDR, "  flags:   0x%08lX\n", ctx->ehdr.e_flags);
+    dl_debug_printf(DL_DBG_EHDR, "  eh_size: %d\n", ctx->ehdr.e_ehsize);
+    dl_debug_printf(DL_DBG_EHDR, "  ph_ent_size: %d\n", ctx->ehdr.e_phentsize);
+    dl_debug_printf(DL_DBG_EHDR, "  ph_num:  %d\n", ctx->ehdr.e_phnum);
+    dl_debug_printf(DL_DBG_EHDR, "  sh_ent_size: %d\n", ctx->ehdr.e_shentsize);
+    dl_debug_printf(DL_DBG_EHDR, "  sh_num:  %d\n", ctx->ehdr.e_shnum);
+    dl_debug_printf(DL_DBG_EHDR, "  sh_strndx: %d\n", ctx->ehdr.e_shstrndx);
 
     if (ctx->ehdr.e_ident[EI_MAG0] != ELFMAG0 ||
         ctx->ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
@@ -135,11 +135,11 @@ void dso_read_section_headers(struct elf_load_context_t* ctx)
 
 void dso_print_program_headers(struct elf_load_context_t* ctx)
 {
-    printf("program headers\n");
-    printf("##: type       flags    offset   vaddr    paddr    filesz   memsz    align\n");
+    dl_debug_printf(DL_DBG_PHDR, "program headers\n");
+    dl_debug_printf(DL_DBG_PHDR, "##: type       flags    offset   vaddr    paddr    filesz   memsz    align\n");
     for(int i = 0; i < ctx->ehdr.e_phnum; i++) {
         Elf32_Phdr* phdr = &ctx->phdr[i];
-        printf("%2d: %-10s %08lX %08lX %08lX %08lX %08lX %08lX %02lX\n",
+        dl_debug_printf(DL_DBG_PHDR, "%2d: %-10s %08lX %08lX %08lX %08lX %08lX %08lX %02lX\n",
                 i, 
                 program_header_types[phdr->p_type < PT_NUM ? phdr->p_type : PT_NUM], 
                 phdr->p_flags, 
@@ -155,13 +155,13 @@ void dso_print_program_headers(struct elf_load_context_t* ctx)
 
 void dso_print_section_headers(struct elf_load_context_t* ctx)
 {
-    printf("sections\n");
-    printf("###: type           flags    offset   addr     size     align name\n");
+    dl_debug_printf(DL_DBG_SHDR, "sections\n");
+    dl_debug_printf(DL_DBG_SHDR, "###: type           flags    offset   addr     size     align name\n");
     for (int i = 0; i < ctx->ehdr.e_shnum; i++) {
         Elf32_Shdr* section = &ctx->shdr[i];
         const char* section_name = dso_section_name(ctx, i);
 
-        printf("%3d: %-14s %08lX %08lX %08lX %08lX %02lX    %s\n",
+        dl_debug_printf(DL_DBG_SHDR, "%3d: %-14s %08lX %08lX %08lX %08lX %02lX    %s\n",
                i,
                section_types[section->sh_type < SHT_NUM ? section->sh_type : SHT_NUM],
                section->sh_flags,
@@ -176,8 +176,8 @@ void dso_print_section_headers(struct elf_load_context_t* ctx)
 
 void dso_print_dynamic_tags(struct elf_load_context_t* ctx)
 {
-    printf("dynamic tags\n");
-    printf("###: tag                          value\n");
+    dl_debug_printf(DL_DBG_DYN, "dynamic tags\n");
+    dl_debug_printf(DL_DBG_DYN, "###: tag                          value\n");
 
     Elf32_Section dynamic_index = 0;
     if(dso_find_section_by_type(ctx, &dynamic_index, SHT_DYNAMIC) < 0) {
@@ -192,11 +192,11 @@ void dso_print_dynamic_tags(struct elf_load_context_t* ctx)
     int j = 0;
     for(; dyn->d_tag != DT_NULL; dyn++) {
         if(dyn->d_tag >= DT_MIPS_RLD_VERSION && dyn->d_tag <= DT_MIPS_RLD_MAP_REL) {
-            printf("%3zu: %-28s %08lX\n", j, mips_dynamic_tag_types[dyn->d_tag - DT_MIPS_RLD_VERSION], dyn->d_un.d_val);
+            dl_debug_printf(DL_DBG_DYN, "%3zu: %-28s %08lX\n", j, mips_dynamic_tag_types[dyn->d_tag - DT_MIPS_RLD_VERSION], dyn->d_un.d_val);
         } else if(dyn->d_tag >= DT_NUM) {
-            printf("%3zu: %08lX                   %08lX\n", j, dyn->d_tag, dyn->d_un.d_val);
+            dl_debug_printf(DL_DBG_DYN, "%3zu: %08lX                   %08lX\n", j, dyn->d_tag, dyn->d_un.d_val);
         } else {
-            printf("%3zu: %-28s %08lX\n", j, dynamic_tag_types[dyn->d_tag], dyn->d_un.d_val);
+            dl_debug_printf(DL_DBG_DYN, "%3zu: %-28s %08lX\n", j, dynamic_tag_types[dyn->d_tag], dyn->d_un.d_val);
         }
         j++;
     }
@@ -204,20 +204,21 @@ void dso_print_dynamic_tags(struct elf_load_context_t* ctx)
 
 void dso_print_symbol_table(struct elf_load_context_t* ctx, Elf32_Sym* symtab, size_t sym_count, const char* strtab)
 {
-    printf("symbols\n");
-    printf("######: size     address  type           bind        index name\n");
+    dl_debug_printf(DL_DBG_SYM, "symbols\n");
+    dl_debug_printf(DL_DBG_SYM, "######: size     address  type           bind        index name\n");
     for(size_t i = 1; i < sym_count; i++) {
         Elf32_Sym* sym = &symtab[i];
         char* name = (char*) dso_symbol_name(ctx, strtab, sym);
-        printf("%6zu: %08lX %08lX %-14s %-10s %6u %s\n", i, sym->st_size, sym->st_value,
+        dl_debug_printf(DL_DBG_SYM, "%6zu: %08lX %08lX %-14s %-10s %6u %s\n", i, sym->st_size, sym->st_value,
                 symbol_types[ELF32_ST_TYPE(sym->st_info) > STT_LOPROC ? STT_LOPROC : ELF32_ST_TYPE(sym->st_info)],
                 binding_types[ELF32_ST_BIND(sym->st_info) > STB_LOPROC ? STB_LOPROC : ELF32_ST_BIND(sym->st_info)],
                 sym->st_shndx, name);
     }
 }
 
-void dso_allocate_module(struct elf_load_context_t* ctx, size_t extra, int type)
+void dso_allocate_module(struct elf_load_context_t* ctx, size_t align, size_t extra, int type)
 {
+    size_t max_align = align;
     size_t module_size = 0;
     for(int i = 0; i < ctx->ehdr.e_phnum; i++) {
         Elf32_Phdr* phdr = &ctx->phdr[i];
@@ -229,13 +230,16 @@ void dso_allocate_module(struct elf_load_context_t* ctx, size_t extra, int type)
             if(module_size < end) {
                 module_size = end;
             }
+            if(phdr->p_align > max_align) {
+                max_align = phdr->p_align;
+            }
         }
     }
 
     module_size += extra;
 
-    printf("module size: 0x%08X\n", module_size);
-    ctx->module = dl_allocate_module(module_size, type);
+    printf("module size: 0x%08X align: %zu\n", module_size, max_align);
+    ctx->module = dl_allocate_module(module_size, max_align, type);
     if(extra) {
         ctx->module->extra = ctx->module->base + module_size - extra;
     } else {

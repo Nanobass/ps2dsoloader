@@ -11,19 +11,6 @@
 
 static const char *local_names[] = {"_init", "_fini", "erl_id", "erl_dependancies", "erl_copyright", "erl_version", "_start", 0};
 
-static uint32_t align(uint32_t x, uint8_t align) {
-#ifdef FORCE_ALIGN
-    if (align < 16)
-	align = 16;
-#endif
-    align--;
-    if (x & align) {
-        x |= align;
-        x++;
-    }
-    return x;
-}
-
 static uintptr_t erl_resolve(struct module_t* module, const char* sym) {
     for(struct module_t* iterator = dl_module_root(); iterator; iterator = iterator->next) {
         struct symbol_t* symbol = dl_module_find_symbol(iterator, sym);
@@ -60,7 +47,7 @@ static void apply_reloc(struct elf_load_context_t* ctx, uintptr_t reloc, int typ
     uint32_t newstate;
 
     if (reloc & 0x3) {
-        printf("unaligned reloc (%08X) type=%d!\n", reloc, type);
+        dl_debug_printf(DL_DBG_REL, "unaligned reloc (%08X) type=%d!\n", reloc, type);
     }
 
     memcpy(&u_current_data, (void*) reloc, 4);
@@ -83,13 +70,13 @@ static void apply_reloc(struct elf_load_context_t* ctx, uintptr_t reloc, int typ
                 | ((((s_current_data << 16) >> 16) + (addr & 0xffff)) & 0xffff);
             break;
         default:
-            printf("unknown relocation type %d at %p\n", type, (void*) reloc);
+            dl_debug_printf(DL_DBG_REL, "unknown relocation type %d at %p\n", type, (void*) reloc);
             dso_error(ctx, "unknown relocation type");
     }
 
     memcpy((void*) reloc, &newstate, 4);
 
-    printf("reloc %-12s at %08X from %08lX to %08lX\n", reloc_types[type], reloc, u_current_data, newstate);
+    dl_debug_printf(DL_DBG_REL, "reloc %-12s at %08X from %08lX to %08lX\n", reloc_types[type], reloc, u_current_data, newstate);
 }
 
 struct module_t* dl_load_erl(FILE* file)
@@ -112,20 +99,24 @@ struct module_t* dl_load_erl(FILE* file)
 
     dso_read_section_headers(ctx);
 
+    size_t max_align = 0;
     size_t module_size = 0;
     for(Elf32_Section i = 1; i < ctx->ehdr.e_shnum; i++) {
         Elf32_Shdr* section = &ctx->shdr[i];
         if(section->sh_flags & SHF_ALLOC) {
             // align the section address after the last section
-            module_size = align(module_size, section->sh_addralign);
+            module_size = dl_align_address(module_size, section->sh_addralign);
             section->sh_addr = module_size;
             module_size += section->sh_size;
+            if(section->sh_addralign > max_align) {
+                max_align = section->sh_addralign;
+            }
         }
     }
 
     dso_print_section_headers(ctx);
 
-    dso_allocate_module(ctx, module_size, DL_MT_ERL);
+    dso_allocate_module(ctx, max_align, module_size, DL_MT_ERL);
     dso_read_module_sections(ctx);
 
     Elf32_Section symtab_index = 0, symstr_index = 0;
@@ -149,18 +140,18 @@ struct module_t* dl_load_erl(FILE* file)
 
         if(section->sh_type != SHT_REL &&
             section->sh_type != SHT_RELA) {
-            printf("skipping section %s (type %ld)\n", name, section->sh_type);
+            dl_debug_printf(DL_DBG_REL, "skipping section %s (type %ld)\n", name, section->sh_type);
             continue;
         } else if(!(ctx->shdr[section->sh_info].sh_flags & SHF_ALLOC) && !(ctx->shdr[section->sh_info].sh_flags & SHF_EXTRA_ALLOCATION)) {
-            printf("section %02d (%s): contains relocations for unloaded section\n", i, name);
+            dl_debug_printf(DL_DBG_REL, "section %02d (%s): contains relocations for unloaded section\n", i, name);
             continue;
         } else {
-            printf("section %02d (%s): contains relocations\n", i, name);
+            dl_debug_printf(DL_DBG_REL, "section %02d (%s): contains relocations\n", i, name);
         }
 
         dso_allocate_extra_section(ctx, i);
 
-        printf("######: offset   type      symbol                                   kind\n");
+        dl_debug_printf(DL_DBG_REL, "######: offset   type      symbol                                   kind\n");
         for(size_t j = 0; j < section->sh_size / section->sh_entsize; j++) {
 
             Elf32_Rel* reloc = (Elf32_Rel*) (section->sh_addr + j * section->sh_entsize);
@@ -173,7 +164,6 @@ struct module_t* dl_load_erl(FILE* file)
                 next_reloc = (Elf32_Rel*)(section->sh_addr + (j + 1) * section->sh_entsize);
                 next_elf_symbol = &symtab[ELF32_R_SYM(next_reloc->r_info)];
             }
-            
 
             size_t addend = 0;
             if(section->sh_type == SHT_RELA) addend = ((Elf32_Rela*)reloc)->r_addend;
@@ -181,19 +171,8 @@ struct module_t* dl_load_erl(FILE* file)
             uintptr_t reloc_address = ctx->shdr[section->sh_info].sh_addr + reloc->r_offset;
 
             switch(ELF32_ST_TYPE(elf_symbol->st_info)) {
-                case STT_NOTYPE: {
-                    uintptr_t symbol_address = erl_resolve(ctx->module, symbol_name);
-                    printf("%6zu: %08lX %4s %-40s: EXTERN ", j, reloc->r_offset, section_types[section->sh_type], symbol_name);
-                    if (!symbol_address) {
-                        printf("unresolved external\n");
-                        dso_error(ctx, "unresolved external");
-                    } else {
-                        printf("found at %08X         ", symbol_address);
-                        apply_reloc(ctx, reloc_address, ELF32_R_TYPE(reloc->r_info), symbol_address + addend);
-                    }
-                } break;
                 case STT_SECTION: {
-                    printf("%6zu: %08lX %4s %-40s: SECTION ", j, reloc->r_offset, section_types[section->sh_type], symbol_name);
+                    dl_debug_printf(DL_DBG_REL, "%6zu: %08lX %4s %-40s: SECTION ", j, reloc->r_offset, section_types[section->sh_type], symbol_name);
 
                     if(next_elf_symbol) {
                          if(ELF32_R_TYPE(reloc->r_info) == R_MIPS_HI16 && ELF32_R_TYPE(next_reloc->r_info) == R_MIPS_LO16 /* high and low fit together */
@@ -202,17 +181,18 @@ struct module_t* dl_load_erl(FILE* file)
                                 *(uint16_t*)(ctx->shdr[section->sh_info].sh_addr + next_reloc->r_offset)) >= 0x8000 /* high part is valid */
                         ) {
                             // apply high and low relocations together
-                            uint32_t data = *(uint32_t*)((uint8_t*)ctx->shdr[section->sh_info].sh_addr + reloc->r_offset);
-                            *(uint32_t*)((uint8_t*)ctx->shdr[section->sh_info].sh_addr + reloc->r_offset) = data + !(data & 0xf);
-                            printf("HI16/LO16 fix            ");
+                            uint32_t data = *(uint32_t*)(ctx->shdr[section->sh_info].sh_addr + reloc->r_offset);
+                            *(uint32_t*)(ctx->shdr[section->sh_info].sh_addr + reloc->r_offset) = data + !(data & 0xf);
+                            dl_debug_printf(DL_DBG_REL, "HI16/LO16 fix            ");
                         } else {
-                            printf("                         ");
+                            dl_debug_printf(DL_DBG_REL, "                         ");
                         }
                     } else {
-                        printf("                         ");
+                        dl_debug_printf(DL_DBG_REL, "                         ");
                     }
                     apply_reloc(ctx, reloc_address, ELF32_R_TYPE(reloc->r_info), ctx->shdr[elf_symbol->st_shndx].sh_addr + addend);
-                }break;
+                } break;
+                case STT_NOTYPE:
                 case STT_OBJECT:
                 case STT_FUNC: {
                     uintptr_t symbol_address = 0;
@@ -230,9 +210,9 @@ struct module_t* dl_load_erl(FILE* file)
                         symbol_address = erl_resolve(ctx->module, symbol_name);
                         symbol_source = "EXTERN";
                     }
-                    printf("%6zu: %08lX %4s %-40s: INTERNAL %s found at %08X ", j, reloc->r_offset, section_types[section->sh_type], symbol_name, symbol_source, symbol_address);
+                    dl_debug_printf(DL_DBG_REL, "%6zu: %08lX %4s %-40s: INTERNAL %s found at %08X ", j, reloc->r_offset, section_types[section->sh_type], symbol_name, symbol_source, symbol_address);
                     if (!symbol_address) {
-                        printf("unresolved external\n");
+                        dl_debug_printf(DL_DBG_REL, "unresolved external\n");
                         dso_error(ctx, "unresolved external");
                     } else {
                         apply_reloc(ctx, reloc_address, ELF32_R_TYPE(reloc->r_info), symbol_address + addend);

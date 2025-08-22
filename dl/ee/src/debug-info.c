@@ -1,3 +1,8 @@
+ #include <debug-info.h>
+
+ #include <stdio.h>
+ #include <stdarg.h>
+ 
  char * program_header_types[] = {
     "PT_NULL",
     "PT_LOAD",
@@ -202,3 +207,28 @@
     "R_MIPS_COPY",
     "R_MIPS_JUMP_SLOT"
 };
+
+static int dl_debug_group = 0xFFFFFFFF;
+
+void dl_debug_add_group(int group) {
+    dl_debug_group |= group;
+}
+
+void dl_debug_remove_group(int group) {
+    dl_debug_group &= ~group;
+}
+
+void dl_debug_clear_group() {
+    dl_debug_group = 0;
+}
+
+int dl_debug_printf(int level, const char *fmt, ...) {
+    if (dl_debug_group & level) {
+        va_list args;
+        va_start(args, fmt);
+        int ret = vprintf(fmt, args);
+        va_end(args);
+        return ret;
+    }
+    return 0;
+}

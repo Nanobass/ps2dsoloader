@@ -142,7 +142,7 @@ struct module_t* dl_load_dso(FILE* file) {
     dso_read_section_headers(ctx);
     dso_print_section_headers(ctx);
 
-    dso_allocate_module(ctx, sizeof(struct dso_context_t), DL_MT_DSO);
+    dso_allocate_module(ctx, 16, sizeof(struct dso_context_t), DL_MT_DSO);
     dso_read_module_sections(ctx);
 
     struct dso_context_t* dso_ctx = get_dso_context(ctx->module);
@@ -249,22 +249,22 @@ struct module_t* dl_load_dso(FILE* file) {
     dso_ctx->got_count = dso_ctx->local_got_count + dso_ctx->dynsym_count - dso_ctx->gotsym;
 
     // relocate global offset table
-    printf("global offset table\n");
-    printf("relocating local entries\n");
-    printf("#####: value       relocated\n");
+    dl_debug_printf(DL_DBG_GOT, "global offset table\n");
+    dl_debug_printf(DL_DBG_GOT, "relocating local entries\n");
+    dl_debug_printf(DL_DBG_GOT, "#####: value       relocated\n");
     for (size_t i = 0; i < dso_ctx->local_got_count; i++) {
         uintptr_t relocated = (uintptr_t) ctx->module->base + dso_ctx->got_base[i];
-        printf("%5zu: %08lX -> %08lX\n", i, (unsigned long) dso_ctx->got_base[i], (unsigned long) relocated);
+        dl_debug_printf(DL_DBG_GOT, "%5zu: %08lX -> %08lX\n", i, (unsigned long) dso_ctx->got_base[i], (unsigned long) relocated);
         dso_ctx->got_base[i] = relocated;
     }
 
-    printf("relocating global entries\n");
-    printf("#####: value       relocated symbol\n");
+    dl_debug_printf(DL_DBG_GOT, "relocating global entries\n");
+    dl_debug_printf(DL_DBG_GOT, "#####: value       relocated symbol\n");
     for (size_t i = dso_ctx->local_got_count; i < dso_ctx->got_count; i++) {
         Elf32_Sym* sym = &dso_ctx->dynsym[i - dso_ctx->local_got_count + dso_ctx->gotsym];
         const char* name = dso_symbol_name(ctx, dso_ctx->dynstr, sym);
         uintptr_t relocated = (uintptr_t) ctx->module->base + dso_ctx->got_base[i];
-        printf("%5zu: %08lX -> %08lX  %s\n", i, (unsigned long) dso_ctx->got_base[i], (unsigned long) relocated, name);
+        dl_debug_printf(DL_DBG_GOT, "%5zu: %08lX -> %08lX  %s\n", i, (unsigned long) dso_ctx->got_base[i], (unsigned long) relocated, name);
         dso_ctx->got_base[i] = relocated;
     }
 
@@ -281,25 +281,25 @@ struct module_t* dl_load_dso(FILE* file) {
 
         if(section->sh_type != SHT_REL) continue;
 
-        printf("section %d (%s) at %p: contains relocations\n", i, name, (void*) section->sh_addr);
+        dl_debug_printf(DL_DBG_REL, "section %d (%s) at %p: contains relocations\n", i, name, (void*) section->sh_addr);
 
         if(section->sh_entsize != sizeof(Elf32_Rel)) {
-            printf("invalid relocation entry size for section %s\n", name);
+            dl_debug_printf(DL_DBG_REL, "invalid relocation entry size for section %s\n", name);
             dso_error(ctx, "invalid relocation entry size");
             return NULL;
         }
 
-        printf("######: offset   type          symbol                value         relocated\n");
+        dl_debug_printf(DL_DBG_REL, "######: offset   type          symbol                value         relocated\n");
         for(size_t j = 0; j < section->sh_size / sizeof(Elf32_Rel); j++) {
             Elf32_Rel* reloc = &((Elf32_Rel*)section->sh_addr)[j];
             if(ELF32_R_TYPE(reloc->r_info) == R_MIPS_NONE) continue;
             Elf32_Sym* symbol = &dso_ctx->dynsym[ELF32_R_SYM(reloc->r_info)];
             const char* name = dso_symbol_name(ctx, dso_ctx->dynstr, symbol);
 
-            printf("%6zu: %08lX %-14s %-20s ", j, reloc->r_offset, reloc_types[ELF32_R_TYPE(reloc->r_info)], name);
+            dl_debug_printf(DL_DBG_REL, "%6zu: %08lX %-14s %-20s ", j, reloc->r_offset, reloc_types[ELF32_R_TYPE(reloc->r_info)], name);
 
             if(ELF32_R_TYPE(reloc->r_info) != R_MIPS_REL32) {
-                printf("shared object should only contain R_MIPS_REL32 relocations\n");
+                dl_debug_printf(DL_DBG_REL, "shared object should only contain R_MIPS_REL32 relocations\n");
                 dso_error(ctx, "unknown relocation type");
             }
             
@@ -308,12 +308,12 @@ struct module_t* dl_load_dso(FILE* file) {
                 uintptr_t* target = (uintptr_t*) (ctx->module->base + reloc->r_offset);
                 // TODO: figure out proper A - EA here
                 uintptr_t relocated = (uintptr_t) ctx->module->base + *target;
-                printf("0x%08lX -> 0x%08lX\n", (unsigned long) *target, (unsigned long) relocated);
+                dl_debug_printf(DL_DBG_REL, "0x%08lX -> 0x%08lX\n", (unsigned long) *target, (unsigned long) relocated);
                 *target = relocated;
             } else {
                 uintptr_t* target = (uintptr_t*) (ctx->module->base + reloc->r_offset);
                 uintptr_t relocated = dso_ctx->got_base[dso_ctx->local_got_count + ELF32_R_SYM(reloc->r_info) - dso_ctx->gotsym] - symbol->st_value + *target;
-                printf("0x%08lX -> 0x%08lX\n", (unsigned long) *target, (unsigned long) relocated);
+                dl_debug_printf(DL_DBG_REL, "0x%08lX -> 0x%08lX\n", (unsigned long) *target, (unsigned long) relocated);
                 *target = relocated;
             }
 
@@ -378,7 +378,6 @@ struct module_t* dl_load_dso(FILE* file) {
         if(dep_module) {
             dl_add_dependency(module, dep_module);
         } else {
-            dl_raise("failed to load dependency");
             return NULL;
         }
     }

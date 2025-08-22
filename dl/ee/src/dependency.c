@@ -13,17 +13,17 @@ static const char* modulename(struct module_t* module) {
 
 int dl_add_dependency(struct module_t* depender, struct module_t* provider)
 {
-    printf("adding dependency: %s -> %s; ", modulename(depender), modulename(provider));
+    dl_debug_printf(DL_DBG_DEPENDANCY, "adding dependency: %s -> %s; ", modulename(depender), modulename(provider));
     struct dependency_t* current = dependencies;
     while (current) {
         if (current->depender == depender && current->provider == provider) {
             current->count++;
-            printf("count: %d\n", current->count);
+            dl_debug_printf(DL_DBG_DEPENDANCY, "count: %d\n", current->count);
             return 0;
         }
         current = current->next;
     }
-    printf("allocated\n");
+    dl_debug_printf(DL_DBG_DEPENDANCY, "allocated\n");
 
     struct dependency_t* dependency = (struct dependency_t*)malloc(sizeof(struct dependency_t));
     if (!dependency) {
@@ -49,7 +49,7 @@ int dl_add_dependency(struct module_t* depender, struct module_t* provider)
 
 int dl_remove_dependency(struct module_t* depender, struct module_t* provider)
 {
-    printf("deleting dependency: %s -> %s; ", modulename(depender), modulename(provider));
+    dl_debug_printf(DL_DBG_DEPENDANCY, "deleting dependency: %s -> %s; ", modulename(depender), modulename(provider));
 
     struct dependency_t* current = dependencies;
     struct dependency_t* previous = NULL;
@@ -59,10 +59,10 @@ int dl_remove_dependency(struct module_t* depender, struct module_t* provider)
 
             if(current->count > 1) {
                 current->count--;
-                printf("count: %d\n", current->count);
+                dl_debug_printf(DL_DBG_DEPENDANCY, "count: %d\n", current->count);
                 return 0;
             }
-            printf("deallocated\n");
+            dl_debug_printf(DL_DBG_DEPENDANCY, "deallocated\n");
 
             if (previous) {
                 previous->next = current->next;
@@ -96,7 +96,7 @@ int dl_remove_depender(struct module_t* depender)
 
     while (current) {
         if (current->depender == depender) {
-            printf("deleting dependency: %s -> %s; deallocated count: %d\n", modulename(depender), modulename(current->provider), current->count);
+            dl_debug_printf(DL_DBG_DEPENDANCY, "deleting dependency: %s -> %s; deallocated count: %d\n", modulename(depender), modulename(current->provider), current->count);
 
             if (previous) {
                 previous->next = current->next;
@@ -104,20 +104,20 @@ int dl_remove_depender(struct module_t* depender)
                 dependencies = current->next;
             }
 
-            struct dependency_t* to_remove = current;
-
-            current = current->next;
-
             int provider_count = 0;
             for(struct dependency_t* current_provider = dependencies; current_provider; current_provider = current_provider->next) {
-                if (current_provider->provider == to_remove->provider) provider_count++;
+                if (current_provider->provider == current->provider) provider_count++;
             }
 
             if (provider_count == 0) {
-                if(to_remove->provider != NULL) dl_free_module(to_remove->provider);
+                if(current->provider != NULL) dl_free_module(current->provider);
             }
 
-            free(to_remove);
+            free(current);
+
+            // current and previous may point to garbled data, because we call this recursivly
+            // unfortunately, we have to iterate again
+            current = dependencies;
         } else {
             previous = current;
             current = current->next;
@@ -129,7 +129,7 @@ int dl_remove_depender(struct module_t* depender)
 void dl_print_dependencies() {
     struct dependency_t* current = dependencies;
     while (current) {
-        printf("dependency: %s -> %s; count: %d\n", modulename(current->depender), modulename(current->provider), current->count);
+        dl_debug_printf(DL_DBG_DEPENDANCY, "dependency: %s -> %s; count: %d\n", modulename(current->depender), modulename(current->provider), current->count);
         current = current->next;
     }
 }

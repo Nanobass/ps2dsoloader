@@ -15,6 +15,9 @@
 
 /* ps2sdk */
 #include <kernel.h>
+#include <loadfile.h>
+
+#include <libpad.h>
 
 #include <dl.h>
 #include <exports.h>
@@ -24,9 +27,9 @@
 #include <lauxlib.h>
 
 int main(int argc, char* argv[]) {
-    exports_add_global_symbols();
-    
+    dl_debug_remove_group(DL_DBG_EHDR | DL_DBG_PHDR | DL_DBG_SHDR | DL_DBG_DYN | DL_DBG_GOT | DL_DBG_REL | DL_DBG_DEPENDANCY);
     dl_set_module_path("erx");
+    exports_add_global_symbols();
 
     lua_State *L;
     L = luaL_newstate();
@@ -36,6 +39,7 @@ int main(int argc, char* argv[]) {
         const char* error_msg = lua_tostring(L, -1);
         printf("lua error: %s\n", error_msg);
         lua_pop(L, 1);
+        SleepThread();
     }
     lua_close(L);
 
